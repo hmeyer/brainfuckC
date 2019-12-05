@@ -1,10 +1,48 @@
-#include "bfi.hpp"
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 #include <iostream>
 #include <cassert>
 
-namespace bfi {
+
+using Word = uint32_t;
+
+class Tape {
+public:
+    Word& operator[](int p);
+private:
+    std::vector<Word> negative_;
+    std::vector<Word> positive_;
+};
+
+class BrainfuckInterpreter {
+public:
+    BrainfuckInterpreter(std::string code);
+    // returns true if there are more step to run.
+    bool run_step();
+    // runs to the end.
+    void run();
+private:
+    char next();
+    std::string code_;
+    std::unordered_map<int, int> loop_start_to_end_;
+    std::unordered_map<int, int> loop_end_to_start_;
+    int ip_ = 0;
+    Tape tape_;
+    int tp_ = 0;
+};
+
+int main(int argc, const char * argv[]) {
+    std::string code;
+    for (std::string line; std::getline(std::cin, line);) {
+        code += line;
+    }
+
+    BrainfuckInterpreter interpreter(code);
+    interpreter.run();
+
+    return 0;
+}
 
 Word& Tape::operator[](int p) {
     std::vector<Word>* a = &positive_;
@@ -73,5 +111,3 @@ void BrainfuckInterpreter::run() {
     while(run_step());
 }
 
-
-}  // namespace bfi

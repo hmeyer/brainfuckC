@@ -3,5 +3,7 @@ project(bfs)
 SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 SET (CMAKE_CXX_COMPILER             "/usr/bin/clang++")
 set(CMAKE_CXX_STANDARD 17)
-set(SOURCE bfs.cc scanner.hpp scanner.cc token.hpp token.cc transformer.hpp transformer.cc bfi.hpp bfi.cc)
+set(SOURCE bfs.cc scanner.hpp scanner.cc token.hpp token.cc transformer.hpp transformer.cc)
 add_executable(${PROJECT_NAME} ${SOURCE})
+
+add_executable(bfi bfi.cc)
