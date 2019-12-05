@@ -15,25 +15,5 @@ int main(int argc, const char * argv[]) {
 
     std::cout << bf << std::endl;
 
-    char sierpinski[] = R"(
-[sierpinski.b -- display Sierpinski triangle
-(c) 2016 Daniel B. Cristofani
-http://brainfuck.org/]
-
-++++++++[>+>++++<<-]>++>>+<[-[>>+<<-]+>>]>+[
-    -<<<[
-        ->[+[-]+>++>>>-<<]<[<]>>++++++[<<+++++>>-]+<<++.[-]<<
-    ]>.>+[>>]>+
-]
-
-[Shows an ASCII representation of the Sierpinski triangle
-(iteration 5).]        
-    )";
-
-
-
-    bfi::BrainfuckInterpreter interpreter(sierpinski);
-    interpreter.run();
-
     return 0;
 }
