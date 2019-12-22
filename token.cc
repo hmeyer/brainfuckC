@@ -1,33 +1,49 @@
 #include "token.hpp"
+#include <iostream>
+#include <cassert>
 
-namespace nbf {
+std::string Token::DebugString() const {
+    switch (type) {
+        case LEFT_PAREN: return "(";
+        case RIGHT_PAREN: return ")";
+        case LEFT_BRACE: return "{";
+        case RIGHT_BRACE: return "}";
+        case COMMA: return ",";
+        case MINUS: return " MINUS ";
+        case PLUS: return " PLUS ";
+        case SEMICOLON: return ";";
+        case SLASH: return "/";
+        case STAR: return "*";
+        case PERCENT: return "%";
 
-std::ostream& operator<<(std::ostream& os, const Variable& v) {
-    os << v.name << ":" << v.size;
-    return os;
+        case BANG: return "!";
+        case BANG_EQUAL: return "!=";
+        case EQUAL: return "=";
+        case EQUAL_EQUAL: return "==";
+        case GREATER: return " gt ";
+        case GREATER_EQUAL: return " ge ";
+        case LESS: return " lt ";
+        case LESS_EQUAL: return " le ";
+
+        case IDENTIFIER: return "IDENTIFIER(" + std::get<std::string>(value) + ")";
+        case STRING: return "STRING(" + std::get<std::string>(value) + ")";
+        case NUMBER: return "NUMBER(" + std::to_string(std::get<int>(value)) + ")";
+
+        // Keywords.                                     
+        case AND: return "AND";
+        case ELSE: return "ELSE";
+        case FUN: return "FUN";
+        case IF: return "IF";
+        case OR: return "OR";
+        case PRINT: return "PRINT";
+        case PUTC: return "PUTC";
+        case RETURN: return "RETURN";
+        case VAR: return "VAR";
+        case WHILE: return "WHILE";
+        case END: return "END";
+
+        case END_OF_FILE: return "END_OF_FILE";
+
+        default: assert(false);  // should never happen.
+    }
 }
-
-template<class T>
-struct streamer {
-    const T& val;
-};
-template<class T> streamer(T) -> streamer<T>;
-
-template<class T>
-std::ostream& operator<<(std::ostream& os, streamer<T> s) {
-    os << s.val;
-    return os;
-}
-
-template<class... Ts>
-std::ostream& operator<<(std::ostream& os, streamer<std::variant<Ts...>> sv) {
-   std::visit([&os](const auto& v) { os << streamer{v}; }, sv.val);
-   return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const Token& t) {
-    os << streamer{t};
-    return os;
-}
-
-}  // namespace nbf

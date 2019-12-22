@@ -6,19 +6,37 @@
 #include <variant>
 #include <optional>
 
-namespace nbf {
+enum TokenType {
+  // Single-character tokens.                      
+  LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
+  COMMA, MINUS, PLUS, SEMICOLON, SLASH, STAR, PERCENT,
 
-using BfToken = char;  // . , + - < > [ ]
+  // One or two character tokens.                  
+  BANG, BANG_EQUAL,             
+  EQUAL, EQUAL_EQUAL,                              
+  GREATER, GREATER_EQUAL,                          
+  LESS, LESS_EQUAL,                                
 
-struct Variable {
-    std::string name;
-    int size;
+  // Literals.                                     
+  IDENTIFIER, STRING, NUMBER,                  
+
+  // Keywords.                                     
+  AND, ELSE, FUN, IF, OR,  
+  PRINT, PUTC, RETURN, VAR, WHILE, END,
+
+  END_OF_FILE,
 };
 
-using Token = std::variant<BfToken, Variable>;
-std::ostream& operator<<(std::ostream& os, const Token& t);
+using TokenValue = std::variant<std::nullopt_t, std::string, int>;
 
 
-}  // nbf
+struct Token {
+    TokenType type;
+    std::string lexeme;
+    TokenValue value;
+    int line;
+    std::string DebugString() const;
+};
+
 
 #endif  // TOKEN_H
