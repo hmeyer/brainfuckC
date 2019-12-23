@@ -31,7 +31,6 @@ private:
     std::unique_ptr<Statement> while_statement();
     std::unique_ptr<Statement> expression_statement();
     std::unique_ptr<Statement> putc();
-    std::unique_ptr<Statement> print();
 
     std::unique_ptr<Expression> assignment();
     std::unique_ptr<Expression> logic_and();
@@ -42,6 +41,7 @@ private:
     std::unique_ptr<Expression> addition();
     std::unique_ptr<Expression> multiplication();
     std::unique_ptr<Expression> unary();
+    std::unique_ptr<Expression> call(Token function);
     std::unique_ptr<Expression> primary();
 
 

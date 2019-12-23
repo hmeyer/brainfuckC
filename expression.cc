@@ -1,4 +1,7 @@
 #include "expression.hpp"
+#include "statement.hpp"
+#include "scanner.hpp"
+#include "parser.hpp"
 
 namespace {
 
@@ -223,4 +226,60 @@ Variable Logical::evaluate_impl(BfSpace* bf) {
 
 std::string Logical::DebugString() const {
     return left_->DebugString() + op_.DebugString() + right_->DebugString();
+}
+
+void Call::print(BfSpace* bf) const {
+    if (arguments_.size() != 1) { 
+        throw std::invalid_argument("print should have exactly one argument at line " + std::to_string(callee_.line));
+    }
+
+    Variable p = bf->add_or_get("__print_value");
+    bf->copy(arguments_[0]->evaluate(bf), p);
+    static const Statement* const kPrintStatement = [](){
+        constexpr char printer[] = R"(
+        {
+            var old_power = 1;
+            while(__print_value or old_power) {
+                var digit = __print_value;
+                var power = 1;
+
+                while(digit > 9) {
+                    digit = digit / 10;
+                    power = power * 10;
+                }
+
+                if (power < old_power) {
+                    putc('0');
+                    old_power = old_power / 10;
+                } else {
+                    putc(digit + '0');
+                    __print_value = __print_value - digit * power;
+                    old_power = power / 10;
+                }
+            }
+        }
+        )";
+        auto statements = Parser(Scanner(printer).scanTokens()).parse();
+        assert(statements.size() == 1);
+        return statements[0].release();
+    }();
+    kPrintStatement->evaluate_impl(bf);
+}
+
+Variable Call::evaluate_impl(BfSpace* bf) {
+    auto callee = std::get<std::string>(callee_.value);
+    if (callee == "print") {
+        print(bf);
+        return bf->addTemp();
+    }
+    return bf->addTemp();
+}
+
+std::string Call::DebugString() const {
+    std::string args;
+    for (const auto& a : arguments_) {
+        if (!args.empty()) args += ", ";
+        args += a->DebugString();
+    }
+    return std::get<std::string>(callee_.value) + "(" + args + ")";
 }

@@ -22,7 +22,7 @@ enum TokenType {
 
   // Keywords.                                     
   AND, ELSE, FUN, IF, OR,  
-  PRINT, PUTC, RETURN, VAR, WHILE, END,
+  PUTC, RETURN, VAR, WHILE, END,
 
   END_OF_FILE,
 };

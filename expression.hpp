@@ -4,6 +4,7 @@
 #include "bf_space.hpp"
 #include "token.hpp"
 #include <memory>
+#include <vector>
 
 class Expression {
 public:
@@ -81,6 +82,17 @@ public:
     std::unique_ptr<Expression> left_;
     Token op_;
     std::unique_ptr<Expression> right_;
+};
+
+class Call : public Expression {
+public:
+    Call(Token callee, std::vector<std::unique_ptr<Expression>> arguments) : callee_(std::move(callee)), arguments_(std::move(arguments)) {}
+    Variable evaluate_impl(BfSpace* bf) override;
+    std::string DebugString() const override;
+ private:
+    void print(BfSpace* bf) const;
+    Token callee_;
+    std::vector<std::unique_ptr<Expression>> arguments_;
 };
 
 #endif  // EXPRESSION_HPP

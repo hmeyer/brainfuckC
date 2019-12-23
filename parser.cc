@@ -44,9 +44,6 @@ std::unique_ptr<Statement> Parser::statement() {
     if (match(PUTC)) {
         return putc();
     }
-    if (match(PRINT)) {
-        return print();
-    }
     if (match(WHILE)) {
         return while_statement();
     }
@@ -130,12 +127,6 @@ std::unique_ptr<Statement> Parser::putc() {
     auto value = expression();
     consume(SEMICOLON, "Expect ';' after value.");
     return std::make_unique<Putc>(std::move(value));
-}
-
-std::unique_ptr<Statement> Parser::print() {
-    auto value = expression();
-    consume(SEMICOLON, "Expect ';' after value.");
-    return std::make_unique<Print>(std::move(value));
 }
 
 bool Parser::match(std::vector<TokenType> types) {
@@ -248,14 +239,31 @@ std::unique_ptr<Expression> Parser::unary() {
     return primary();     
 }
 
+std::unique_ptr<Expression> Parser::call(Token callee) {
+    std::vector<std::unique_ptr<Expression>> arguments;
+    if (!check(RIGHT_PAREN)) {                                        
+      do {                                                            
+        arguments.push_back(expression());                
+      } while (match(COMMA));                                         
+    }
+
+    Token paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
+
+    return std::make_unique<Call>(std::move(callee), std::move(arguments));         
+}
+
 std::unique_ptr<Expression> Parser::primary() {
     if (match({NUMBER, STRING})) {                           
-      return std::make_unique<Literal>(previous().value);         
+        return std::make_unique<Literal>(previous().value);         
     }
 
 
-    if (match(IDENTIFIER)) {                      
-      return std::make_unique<VariableExpression>(previous());       
+    if (match(IDENTIFIER)) {
+        auto maybe_callee = previous();
+        if (match(LEFT_PAREN)) {
+            return call(maybe_callee);
+        }
+        return std::make_unique<VariableExpression>(previous());       
     }
 
     if (match(LEFT_PAREN)) {                               

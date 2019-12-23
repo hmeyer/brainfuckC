@@ -37,15 +37,6 @@ public:
     std::unique_ptr<Expression> value_;
 };
 
-class Print : public Statement {
-public:
-    Print(std::unique_ptr<Expression> value) : value_(std::move(value)) {}
-    void evaluate_impl(BfSpace* bf) const override;
-    std::string DebugString() const override;
- private:
-    std::unique_ptr<Expression> value_;
-};
-
 class ExpressionStatement : public Statement {
 public:
     ExpressionStatement(std::unique_ptr<Expression> value) : value_(std::move(value)) {}

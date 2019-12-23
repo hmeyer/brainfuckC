@@ -1,6 +1,4 @@
 #include "statement.hpp"
-#include "scanner.hpp"
-#include "parser.hpp"
 
 
 void VarDeclaration::evaluate_impl(BfSpace* bf) const {
@@ -27,45 +25,6 @@ std::string Putc::DebugString() const {
     return "putc(" + value_->DebugString() + ");";
 }
 
-
-void Print::evaluate_impl(BfSpace* bf) const {
-    Variable p = bf->add_or_get("__print_value");
-    bf->copy(value_->evaluate(bf), p);
-    static const Statement* const kPrintStatement = [](){
-        constexpr char printer[] = R"(
-        {
-            var old_power = 1;
-            while(__print_value or old_power) {
-                var digit = __print_value;
-                var power = 1;
-
-                while(digit > 9) {
-                    digit = digit / 10;
-                    power = power * 10;
-                }
-
-                if (power < old_power) {
-                    putc('0');
-                    old_power = old_power / 10;
-                } else {
-                    putc(digit + '0');
-                    __print_value = __print_value - digit * power;
-                    old_power = power / 10;
-                }
-            }
-        }
-        )";
-        auto statements = Parser(Scanner(printer).scanTokens()).parse();
-        assert(statements.size() == 1);
-        return statements[0].release();
-    }();
-    kPrintStatement->evaluate_impl(bf);
-}
-
-std::string Print::DebugString() const {
-    return "print(" + value_->DebugString() + ");";
-}
-
 void ExpressionStatement::evaluate_impl(BfSpace* bf) const {
     value_->evaluate(bf);
 }
@@ -85,7 +44,7 @@ void Block::evaluate_impl(BfSpace* bf) const {
 std::string Block::DebugString() const {
     std::string result;
     for (const auto& s : statements_) {
-        result += s->DebugString() + " ";
+        result += s->DebugString() + "\n";
     }
     return result;
 }
@@ -128,5 +87,5 @@ void While::evaluate_impl(BfSpace* bf) const {
 }
 
 std::string While::DebugString() const {
-    return "while (" + condition_->DebugString() + ") ";
+    return "while (" + condition_->DebugString() + ") " + body_->DebugString();
 }

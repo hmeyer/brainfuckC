@@ -73,7 +73,6 @@ void Scanner::identifier() {
         {"fun",    FUN},                       
         {"if",     IF},                        
         {"or",     OR},                        
-        {"print",  PRINT},                     
         {"putc",   PUTC},                     
         {"return", RETURN},                    
         {"var",    VAR},                       

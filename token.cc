@@ -35,7 +35,6 @@ std::string Token::DebugString() const {
         case FUN: return "FUN";
         case IF: return "IF";
         case OR: return "OR";
-        case PRINT: return "PRINT";
         case PUTC: return "PUTC";
         case RETURN: return "RETURN";
         case VAR: return "VAR";
