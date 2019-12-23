@@ -61,6 +61,11 @@ BrainfuckInterpreter::BrainfuckInterpreter(std::string code) {
     std::vector<int> loop_starts;
     int ip = 0;
     while(ip < code.size()) {
+        if (code.substr(ip, 3) == "[-]") {
+            code_.push_back('z');
+            ip+=3;
+            continue;
+        }
         char t = code[ip++];
         if (kBfTokens->find(t) != kBfTokens->end()) {
             code_.push_back(t);
@@ -90,6 +95,7 @@ bool BrainfuckInterpreter::run_step() {
         case ',': tape_[tp_] = getchar(); break;
         case '+': tape_[tp_]++; break;
         case '-': tape_[tp_]--; break;
+        case 'z': tape_[tp_] = 0; break;
         case '>': tp_++; break;
         case '<': tp_--; break;
         case '[': if (tape_[tp_] == 0) {
