@@ -30,6 +30,8 @@ int main(int argc, const char * argv[]) {
         var fib = 1;
         while(fib < 1000) {
             print(fib);
+            if (fib == 8) putc('+');
+            if (fib != 8) putc('-');
             putc('\n');
 
             var t = fib;

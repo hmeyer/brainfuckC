@@ -186,8 +186,19 @@ std::unique_ptr<Expression> Parser::equality() {
 
     while (match({BANG_EQUAL, EQUAL_EQUAL})) {        
         Token op = previous();                  
-        auto right = comparison();                    
+        auto right = comparison();
+        bool invert = false;
+        if (op.type == EQUAL_EQUAL) {
+            invert = true;
+        }
+        // Rewrite equality as MINUS.
+        op.type = MINUS;
         expr = std::make_unique<Binary>(std::move(expr), std::move(op), std::move(right));
+        if (invert) {
+            Token op = previous();
+            op.type = BANG;
+            expr = std::make_unique<Unary>(std::move(op), std::move(expr));
+        }
     }                                               
 
     return expr;    

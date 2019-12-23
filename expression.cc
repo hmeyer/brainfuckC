@@ -34,6 +34,22 @@ Variable le(BfSpace* bf, Variable _x, Variable y) {
     return x;
 }
 
+Variable eq(BfSpace* bf, Variable _x, Variable _y) {
+    Variable x = bf->wrap_temp(std::move(_x));
+    Variable y = bf->wrap_temp(std::move(_y));
+    *bf << Comment{"eq(" + x.DebugString() + ";" +  y.DebugString() + ")"};
+    *bf << x << "[-" << y << "-" << x << "]+" << y << "[" << x << "-" << y << "[-]]";
+    return x;
+}
+
+Variable neq(BfSpace* bf, Variable _x, Variable _y) {
+    Variable x = bf->wrap_temp(std::move(_x));
+    Variable y = bf->wrap_temp(std::move(_y));
+    *bf << Comment{"neq(" + x.DebugString() + ";" +  y.DebugString() + ")"};
+    *bf << x << "[" << y << "-" << x << "-]" << y << "[[-]" << x << "+" << y << "]";
+    return x;
+}
+
 }  // namespace
 
 Variable Binary::evaluate_impl(BfSpace* bf) {
