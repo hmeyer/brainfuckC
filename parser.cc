@@ -20,8 +20,24 @@ std::vector<std::unique_ptr<Statement>> Parser::block() {
 }
 
 std::unique_ptr<Statement> Parser::declaration() {
+    if (match(FUN)) return function();
     if (match(VAR)) return var_declaration();
     return statement();                     
+}
+
+std::unique_ptr<Statement> Parser::function() {
+    Token name = consume(IDENTIFIER, "Expect function name.");
+    consume(LEFT_PAREN, "Expect '(' after function name.");       
+    std::vector<Token> parameters;                       
+    if (!check(RIGHT_PAREN)) {                                        
+      do {                                                            
+        parameters.push_back(consume(IDENTIFIER, "Expect parameter name."));
+      } while (match(COMMA));                                         
+    }                                                                 
+    consume(RIGHT_PAREN, "Expect ')' after parameters.");
+    consume(LEFT_BRACE, "Expect '{' before function body.");
+    auto body = std::make_unique<Block>(block());                    
+    return std::make_unique<Function>(std::move(name), std::move(parameters), std::move(body));
 }
 
 std::unique_ptr<Statement> Parser::var_declaration() {
@@ -178,18 +194,18 @@ std::unique_ptr<Expression> Parser::equality() {
     while (match({BANG_EQUAL, EQUAL_EQUAL})) {        
         Token op = previous();                  
         auto right = comparison();
-        bool invert = false;
-        if (op.type == EQUAL_EQUAL) {
-            invert = true;
-        }
-        // Rewrite equality as MINUS.
-        op.type = MINUS;
+        // bool invert = false;
+        // if (op.type == EQUAL_EQUAL) {
+        //     invert = true;
+        // }
+        // // Rewrite equality as MINUS.
+        // op.type = MINUS;
         expr = std::make_unique<Binary>(std::move(expr), std::move(op), std::move(right));
-        if (invert) {
-            Token op = previous();
-            op.type = BANG;
-            expr = std::make_unique<Unary>(std::move(op), std::move(expr));
-        }
+        // if (invert) {
+        //     Token op = previous();
+        //     op.type = BANG;
+        //     expr = std::make_unique<Unary>(std::move(op), std::move(expr));
+        // }
     }                                               
 
     return expr;    

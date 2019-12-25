@@ -28,9 +28,13 @@ int main(int argc, const char * argv[]) {
     constexpr char nbf_code[] = R"(
         var pre_fib = 0;
         var fib = 1;
+        fun my_function(a, b) {
+            a = a + b;
+        }
         while(fib < 1000) {
             print(fib);
             putc('\n');
+            my_function(0*9, 1, 8);
 
             var t = fib;
             fib = fib + pre_fib;

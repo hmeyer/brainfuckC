@@ -9,6 +9,7 @@
 
 
 class Variable;
+class Function;
 
 class Env {
 public:
@@ -18,6 +19,7 @@ public:
     Variable add_or_get(const std::string& name, int size = 1);
     Variable get(const std::string& name);
     Variable addTemp(int size = 1);
+    Variable addTempOnTop(int size = 1);
     void remove(int index);
     std::unique_ptr<Env> release_parent() { return std::move(parent_); }
 
@@ -61,6 +63,34 @@ struct Comment {
     std::string value;
 };
 
+class FunctionStorage {
+    public:
+    int lookup_function(std::string_view name, int arity);
+    void define_function(const Function& function);
+    void validate_functions() const;
+    int max_arity() const { return max_arity_; }
+
+    private:
+    struct IndexedFunction {
+        size_t index;
+        int arity;
+        const Function* function;
+    };
+
+    std::unordered_map<std::string, IndexedFunction> functions_;
+    int max_arity_ = 0;
+};
+
+struct FunctionVars {
+    explicit FunctionVars(const FunctionStorage* function_storage, Env* env)
+        : called_function_index(env->addTempOnTop()),
+          return_position(env->addTempOnTop()),
+          parameters(env->addTempOnTop(function_storage!=nullptr?function_storage->max_arity():0)) {}
+    Variable called_function_index;
+    Variable return_position;
+    Variable parameters;
+};
+
 class BfSpace {
     public:
     class Emitter {
@@ -98,8 +128,11 @@ class BfSpace {
         friend class BfSpace;
     };
 
-    BfSpace(): env_(std::make_unique<Env>()) {}
-    const std::string& code() const { return code_; }
+    BfSpace(): BfSpace(nullptr) {
+        owned_functions_ = std::make_unique<FunctionStorage>();
+        functions_ = owned_functions_.get();
+    }
+    const std::string& code() const { validate_functions(); return code_; }
     Emitter operator<<(std::string_view s);
     Emitter operator<<(const Variable& v);
     Emitter operator<<(const Comment& c);
@@ -108,20 +141,41 @@ class BfSpace {
     Variable add_or_get(const std::string& name, int size = 1) { return env_->add_or_get(name, size); }
     Variable get(const std::string& name)  { return env_->get(name); }
     Variable addTemp(int size = 1) { return env_->addTemp(size); }
+    Variable addTempWithValue(int value);
     Variable wrap_temp(Variable v);
+
+    Variable op_add(Variable x, Variable y);
+    Variable op_sub(Variable x, Variable y);
+    Variable op_mul(Variable x, Variable y);
+    Variable op_div(Variable x, Variable y);
+    Variable op_lt(Variable x, Variable y);
+    Variable op_le(Variable x, Variable y);
+    Variable op_eq(Variable x, Variable y);
+    Variable op_neq(Variable x, Variable y);
+    Variable op_neg(Variable x);
+    Variable op_not(Variable x);
+
 
     void copy(const Variable& src, const Variable& dst);
     void push_scope();
     void pop_scope();
     Indent indent() { return Indent(&indent_); }
+    int lookup_function(std::string_view name, int arity) { return functions_->lookup_function(name, arity); }
+    void define_function(const Function& function) { functions_->define_function(function); }
+    void validate_functions() const { functions_->validate_functions(); }
 
     private:
+        explicit BfSpace(BfSpace* parent);
         void moveTo(int pos);
 
         std::string code_;
         int current_tape_pos_ = 0;
+        BfSpace* parent_ = nullptr;
         std::unique_ptr<Env> env_;
+        std::unique_ptr<FunctionStorage> owned_functions_;
+        FunctionStorage* functions_;
         int indent_ = 0;
+        FunctionVars function_vars_;
 };
 
 

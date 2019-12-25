@@ -78,4 +78,18 @@ public:
     std::unique_ptr<Statement> body_;
 };
 
+class Function : public Statement {
+public:
+    Function(Token name, std::vector<Token> parameters, std::unique_ptr<Statement> body)
+      : name_(std::move(name)), parameters_(std::move(parameters)), body_(std::move(body)){}
+    void evaluate_impl(BfSpace* bf) const override;
+    std::string DebugString() const override;
+    const std::string& name() const { return std::get<std::string>(name_.value); }
+    int arity() const { return parameters_.size(); }
+ private:
+    Token name_;
+    std::vector<Token> parameters_;
+    std::unique_ptr<Statement> body_;
+};
+
 #endif  // STATEMENT_HPP

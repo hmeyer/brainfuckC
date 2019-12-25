@@ -89,3 +89,17 @@ void While::evaluate_impl(BfSpace* bf) const {
 std::string While::DebugString() const {
     return "while (" + condition_->DebugString() + ") " + body_->DebugString();
 }
+
+void Function::evaluate_impl(BfSpace* bf) const {
+    bf->define_function(*this);
+}
+
+std::string Function::DebugString() const {
+    std::string parameters;
+    for (const auto& p : parameters_) {
+        if (!parameters.empty()) parameters += "; ";
+        parameters += std::get<std::string>(p.value);
+    }
+
+    return "fun " + std::get<std::string>(name_.value) + "(" + parameters + ") {\n" + body_->DebugString() + "\n}";
+}

@@ -1,4 +1,5 @@
 #include "bf_space.hpp"
+#include "statement.hpp"
 
 namespace {
 int find_consecutive(const std::set<int>& s, int size, int next_free) {
@@ -77,6 +78,15 @@ Variable Env::addTemp(int size) {
     return Variable(this, index, "");
 }
 
+Variable Env::addTempOnTop(int size) {
+    int index = next_free_;
+    next_free_ += size;
+    if (size != 1) { 
+        temp_sizes_[index] = size;
+    }
+    return Variable(this, index, "");
+}
+
 void Env::remove(int index) {
     if (index >= next_free_ || free_list_.count(index) > 0) {
         throw std::runtime_error("tried to remove non-existent index " + std::to_string(index));
@@ -92,6 +102,19 @@ void Env::remove(int index) {
         free_list_.insert(index++);
     }
 }
+
+namespace {
+    constexpr char kMyFunctionIndex[] = "__MyFunctionIndex";
+    constexpr char kCalledFunctionIndex[] = "__CalledFunctionIndex";
+    constexpr char kReturnPosition[] = "__ReturnPosition";
+    constexpr char kReturnValue[] = "__ReturnValue";
+}
+
+BfSpace::BfSpace(BfSpace* parent): parent_(parent),
+                                   env_(std::make_unique<Env>()),
+                                   functions_(parent_!=nullptr?parent_->functions_:nullptr),
+                                   function_vars_(functions_, env_.get()) {}
+
 
 BfSpace::Emitter BfSpace::operator<<(std::string_view s) {
     Emitter e{this};
@@ -133,6 +156,140 @@ BfSpace::Emitter& BfSpace::Emitter::operator<<(const Comment& c) {
     return *this;
 }
 
+Variable BfSpace::addTempWithValue(int value) {
+    Variable t = addTemp();
+    *this << Comment{t.DebugString() + "=" + std::to_string(value)}; 
+    char op = '+';
+    if (value < 0) {
+        op = '-';
+        value = -value;
+    }
+    *this << t << "[-]" << std::string(value, op);
+    return t;
+}
+
+Variable BfSpace::op_add(Variable _x, Variable y) {
+    Variable x = wrap_temp(std::move(_x));
+    *this << y << "[-" << x << "+" << y << "]";
+    return x;
+}
+
+Variable BfSpace::op_sub(Variable _x, Variable _y) {
+    Variable x = wrap_temp(std::move(_x));
+    Variable y = wrap_temp(std::move(_y));
+    *this << y << "[-" << x << "-" << y << "]";
+    return x;
+}
+
+Variable BfSpace::op_mul(Variable _x, Variable y) {
+    Variable x = wrap_temp(std::move(_x));
+    Variable t0 = addTemp();
+    Variable t1 = addTemp();
+    *this << t0 << "[-]";
+    *this << t1 << "[-]";
+    *this << x << "[" << t1 << "+" << x << "-]";
+    *this << t1 << "[";
+    *this << y << "[" << x << "+" << t0 << "+" << y << "-]" << t0 << "[" << y << "+" << t0 << "-]";
+    *this << t1 << "-]";
+    return x;
+}
+
+Variable BfSpace::op_div(Variable _x, Variable y) {
+    Variable x = wrap_temp(std::move(_x));
+    Variable t0 = addTemp();
+    Variable t1 = addTemp();
+    Variable t2 = addTemp();
+    Variable t3 = addTemp();
+
+    *this << t0 << "[-]";
+    *this << t1 << "[-]";
+    *this << t2 << "[-]";
+    *this << t3 << "[-]";
+    *this << x << "[" << t0 << "+" << x<< "-]";
+    *this << t0 << "[";
+    {
+        auto i = indent();
+        *this << y << "[" << t1 << "+" << t2 << "+" << y << "-]";
+        *this << t2 << "[" << y<< "+" << t2 << "-]";
+        *this << t1 << "[";
+        {
+            auto i = indent();
+            *this <<   t2 << "+";
+            *this <<   t0 << "-" << "[" << t2 << "[-]" << t3 << "+" << t0 << "-]";
+            *this <<   t3 << "[" << t0 << "+" << t3 << "-]";
+            *this <<   t2 << "[";
+            {
+                auto i = indent();
+                *this <<    t1 << "-";
+                *this <<    "[" << x << "-" << t1 << "[-]]+";
+                *this <<   t2 << "-]";
+            }
+            *this <<  t1 << "-]";
+        }
+        *this <<  x << "+";
+    }
+    *this << t0 << "]";   
+    return x;
+}
+
+Variable BfSpace::op_lt(Variable _x, Variable y) {
+    Variable x = wrap_temp(std::move(_x));
+    Variable temp0 = addTemp();
+    Variable temp1 = addTemp(3);
+    *this << Comment{"lt(" + x.DebugString() + ";" +  y.DebugString() + ")"};
+    *this << temp0 << "[-]";
+    *this << temp1 << "[-] >[-]+ >[-] <<"; 
+    *this << y << "[" << temp0 << "+" << temp1 << "+" << y << "-]"; 
+    *this << temp0 << "[" << y << "+" << temp0 << "-]"; 
+    *this << x << "[" << temp0 << "+" << x << "-]+"; 
+    *this << temp1 << "[>-]> [< " << x  << "-" << temp0 << "[-]" << temp1 << ">->]<+<"; 
+    *this << temp0 << "[" << temp1 << "- [>-]> [<" << x << "-" << temp0 << "[-]+" << temp1 << ">->]<+<" << temp0 << "-]"; 
+    *this << "\n";
+    return x;
+}
+
+Variable BfSpace::op_le(Variable _x, Variable y) {
+    Variable x = wrap_temp(std::move(_x));
+    Variable temp0 = addTemp();
+    Variable temp1 = addTemp(3);
+    *this << Comment{"le(" + x.DebugString() + ";" +  y.DebugString() + ")"};
+    *this << temp0 << "[-]"; 
+
+    *this << temp1 << "[-] >[-]+ >[-] <<"; 
+    *this << y << "[" << temp0 << "+ " << temp1 << "+ " << y << "-]"; 
+    *this << temp1 << "[" << y << "+ " << temp1 << "-]"; 
+    *this << x << "[" << temp1 << "+ " << x << "-]"; 
+    *this << temp1 << "[>-]> [< " << x << "+ " << temp0 << "[-] " << temp1 << ">->]<+<"; 
+    *this << temp0 << "[" << temp1 << "- [>-]> [< " << x << "+ " << temp0 << "[-]+ " << temp1 << ">->]<+< " << temp0 << "-]"; 
+    return x;
+}
+
+Variable BfSpace::op_eq(Variable x, Variable y) {
+    return op_not(op_neq(std::move(x), std::move(y)));
+}
+
+Variable BfSpace::op_neq(Variable x, Variable y) {
+    return op_sub(std::move(x), std::move(y));
+}
+
+Variable BfSpace::op_neg(Variable _x) {
+    Variable x = wrap_temp(std::move(_x));
+    Variable t = addTemp();
+    *this << t << "[-]";
+    *this << x << "[" << t << "-" << x << "-]";
+    *this << t << "[" << x << "-" << t << "+]";
+    return x;
+}
+
+Variable BfSpace::op_not(Variable _x) {
+    Variable x = wrap_temp(std::move(_x));
+    Variable t = addTemp();
+    *this << t << "[-]";
+    *this << x << "[" << t << "+" << x << "[-]]+";
+    *this << t << "[" << x << "-" << t << "-]";
+    return x;
+}
+
 void BfSpace::moveTo(int pos) {
     int delta = pos - current_tape_pos_;
     current_tape_pos_ = pos;
@@ -165,4 +322,35 @@ void BfSpace::push_scope() {
 
 void BfSpace::pop_scope() {
     env_ = env_->release_parent();
+}
+
+int FunctionStorage::lookup_function(std::string_view name, int arity) {
+    auto [it, inserted] = functions_.insert(std::make_pair(std::string(name),
+                                            IndexedFunction{functions_.size(), arity, nullptr}));
+    return it->second.index;
+}
+
+void FunctionStorage::define_function(const Function& function) {
+    auto [it, inserted] = functions_.insert(std::make_pair(function.name(),
+                                            IndexedFunction{functions_.size(), function.arity(), nullptr}));
+    if (!inserted) {
+        if (it->second.function != nullptr) {
+            throw std::invalid_argument("function already exists '" + function.name() + "'");
+        } else {
+            if (it->second.arity != function.arity()) {
+                throw std::invalid_argument("function '" + function.name() + "' has wrong arity (" +
+                                            std::to_string(it->second.arity) + " vs " + std::to_string(function.arity()) + ")");
+            }
+        }
+    }
+    max_arity_ = std::max(max_arity_, it->second.arity);
+    it->second.function = &function;
+}
+
+void FunctionStorage::validate_functions() const { 
+    for (const auto& [name, fun] : functions_) {
+        if (fun.function == nullptr) {
+            throw std::invalid_argument("undefined function '" + name + "' of arity " + std::to_string(fun.arity));
+        }
+    }
 }

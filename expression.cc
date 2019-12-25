@@ -3,110 +3,21 @@
 #include "scanner.hpp"
 #include "parser.hpp"
 
-namespace {
-
-Variable lt(BfSpace* bf, Variable _x, Variable y) {
-    Variable x = bf->wrap_temp(std::move(_x));
-    Variable temp0 = bf->addTemp();
-    Variable temp1 = bf->addTemp(3);
-    *bf << Comment{"lt(" + x.DebugString() + ";" +  y.DebugString() + ")"};
-    *bf << temp0 << "[-]";
-    *bf << temp1 << "[-] >[-]+ >[-] <<"; 
-    *bf << y << "[" << temp0 << "+" << temp1 << "+" << y << "-]"; 
-    *bf << temp0 << "[" << y << "+" << temp0 << "-]"; 
-    *bf << x << "[" << temp0 << "+" << x << "-]+"; 
-    *bf << temp1 << "[>-]> [< " << x  << "-" << temp0 << "[-]" << temp1 << ">->]<+<"; 
-    *bf << temp0 << "[" << temp1 << "- [>-]> [<" << x << "-" << temp0 << "[-]+" << temp1 << ">->]<+<" << temp0 << "-]"; 
-    *bf << "\n";
-    return x;
-}
-
-Variable le(BfSpace* bf, Variable _x, Variable y) {
-    Variable x = bf->wrap_temp(std::move(_x));
-    Variable temp0 = bf->addTemp();
-    Variable temp1 = bf->addTemp(3);
-    *bf << Comment{"le(" + x.DebugString() + ";" +  y.DebugString() + ")"};
-    *bf << temp0 << "[-]"; 
-
-    *bf << temp1 << "[-] >[-]+ >[-] <<"; 
-    *bf << y << "[" << temp0 << "+ " << temp1 << "+ " << y << "-]"; 
-    *bf << temp1 << "[" << y << "+ " << temp1 << "-]"; 
-    *bf << x << "[" << temp1 << "+ " << x << "-]"; 
-    *bf << temp1 << "[>-]> [< " << x << "+ " << temp0 << "[-] " << temp1 << ">->]<+<"; 
-    *bf << temp0 << "[" << temp1 << "- [>-]> [< " << x << "+ " << temp0 << "[-]+ " << temp1 << ">->]<+< " << temp0 << "-]"; 
-    return x;
-}
-
-Variable eq(BfSpace* bf, Variable _x, Variable _y) {
-    Variable x = bf->wrap_temp(std::move(_x));
-    Variable y = bf->wrap_temp(std::move(_y));
-    *bf << Comment{"eq(" + x.DebugString() + ";" +  y.DebugString() + ")"};
-    *bf << x << "[-" << y << "-" << x << "]+" << y << "[" << x << "-" << y << "[-]]";
-    return x;
-}
-
-Variable neq(BfSpace* bf, Variable _x, Variable _y) {
-    Variable x = bf->wrap_temp(std::move(_x));
-    Variable y = bf->wrap_temp(std::move(_y));
-    *bf << Comment{"neq(" + x.DebugString() + ";" +  y.DebugString() + ")"};
-    *bf << x << "[" << y << "-" << x << "-]" << y << "[[-]" << x << "+" << y << "]";
-    return x;
-}
-
-}  // namespace
 
 Variable Binary::evaluate_impl(BfSpace* bf) {
-    Variable x = bf->wrap_temp(left_->evaluate(bf));
-    Variable y = bf->wrap_temp(right_->evaluate(bf));
+    Variable x = left_->evaluate(bf);
+    Variable y = right_->evaluate(bf);
     switch (op_.type) {
-        case PLUS:
-            *bf << y << "[-" << x << "+" << y << "]";
-            return x;
-        case MINUS:
-            *bf << y << "[-" << x << "-" << y << "]";
-            return x;
-        case STAR: {
-            Variable t0 = bf->addTemp();
-            Variable t1 = bf->addTemp();
-            *bf << t0 << "[-]";
-            *bf << t1 << "[-]";
-            *bf << x << "[" << t1 << "+" << x << "-]";
-            *bf << t1 << "[";
-            *bf << y << "[" << x << "+" << t0 << "+" << y << "-]" << t0 << "[" << y << "+" << t0 << "-]";
-            *bf << t1 << "-]";
-            return x;
-        }
-        case SLASH: {
-            Variable t0 = bf->addTemp();
-            Variable t1 = bf->addTemp();
-            Variable t2 = bf->addTemp();
-            Variable t3 = bf->addTemp();
-
-            *bf << t0 << "[-]";
-            *bf << t1 << "[-]";
-            *bf << t2 << "[-]";
-            *bf << t3 << "[-]";
-            *bf << x << "[" << t0 << "+" << x<< "-]";
-            *bf << t0 << "[";
-            *bf << y << "[" << t1 << "+" << t2 << "+" << y << "-]";
-            *bf << t2 << "[" << y<< "+" << t2 << "-]";
-            *bf << t1 << "[";
-            *bf <<   t2 << "+";
-            *bf <<   t0 << "-" << "[" << t2 << "[-]" << t3 << "+" << t0 << "-]";
-            *bf <<   t3 << "[" << t0 << "+" << t3 << "-]";
-            *bf <<   t2 << "[";
-            *bf <<    t1 << "-";
-            *bf <<    "[" << x << "-" << t1 << "[-]]+";
-            *bf <<   t2 << "-]";
-            *bf <<  t1 << "-]";
-            *bf <<  x << "+";
-            *bf << t0 << "]";            
-            return x;
-        }
-        case GREATER: return lt(bf, std::move(y), std::move(x));
-        case LESS: return lt(bf, std::move(x), std::move(y));
-        case GREATER_EQUAL: return le(bf, std::move(y), std::move(x));
-        case LESS_EQUAL: return le(bf, std::move(x), std::move(y));
+        case PLUS: return bf->op_add(std::move(x), std::move(y));
+        case MINUS: return bf->op_sub(std::move(x), std::move(y));
+        case STAR: return bf->op_mul(std::move(x), std::move(y));
+        case SLASH: return bf->op_div(std::move(x), std::move(y));
+        case GREATER: return bf->op_lt(std::move(y), std::move(x));
+        case LESS: return bf->op_lt(std::move(x), std::move(y));
+        case GREATER_EQUAL: return bf->op_le(std::move(y), std::move(x));
+        case LESS_EQUAL: return bf->op_le(std::move(x), std::move(y));
+        case EQUAL_EQUAL: return bf->op_eq(std::move(x), std::move(y));
+        case BANG_EQUAL: return bf->op_neq(std::move(x), std::move(y));
         default: assert(false);  // Should never happen.
     }
 }
@@ -117,23 +28,14 @@ std::string Binary::DebugString() const {
 
 
 Variable Unary::evaluate_impl(BfSpace* bf) {
-    Variable x = bf->wrap_temp(right_->evaluate(bf));
-    Variable t = bf->addTemp();
+    Variable x = right_->evaluate(bf);
     switch (op_.type) {
         case BANG:
-            *bf << t << "[-]";
-            *bf << x << "[" << t << "+" << x << "[-]]+";
-            *bf << t << "[" << x << "-" << t << "-]";
-            return x;
-            break;
+            return bf->op_not(std::move(x));
         case MINUS:
-            *bf << t << "[-]";
-            *bf << x << "[" << t << "-" << x << "-]";
-            *bf << t << "[" << x << "-" << t << "+]";
-            return x;
+            return bf->op_neg(std::move(x));
         default: assert(false);  // Should never happen.
     }
-    return x;
 }
 
 std::string Unary::DebugString() const { 
@@ -143,19 +45,7 @@ std::string Unary::DebugString() const {
 Variable Literal::evaluate_impl(BfSpace* bf) {
     assert(!std::holds_alternative<std::nullopt_t>(value_));
     if (std::holds_alternative<int>(value_)) {
-        int v = std::get<int>(value_);
-        Variable t = bf->addTemp();
-        *bf << Comment{t.DebugString() + "=" + std::to_string(v)}; 
-        *bf << t << "[-]";
-        char op = '+';
-        if (v < 0) {
-            op = '-';
-            v = -v;
-        }
-        *bf << t; 
-        *bf << std::string(v, op);
-        *bf << "\n\n";
-        return t;
+        return bf->addTempWithValue(std::get<int>(value_));
     }
     if (std::holds_alternative<std::string>(value_)) {
         throw std::runtime_error("cannot handle string literals yet");
@@ -272,13 +162,14 @@ Variable Call::evaluate_impl(BfSpace* bf) {
         print(bf);
         return bf->addTemp();
     }
+    int index = bf->lookup_function(callee, arguments_.size());
     return bf->addTemp();
 }
 
 std::string Call::DebugString() const {
     std::string args;
     for (const auto& a : arguments_) {
-        if (!args.empty()) args += ", ";
+        if (!args.empty()) args += "; ";
         args += a->DebugString();
     }
     return std::get<std::string>(callee_.value) + "(" + args + ")";
