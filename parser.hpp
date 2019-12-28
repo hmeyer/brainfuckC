@@ -10,12 +10,16 @@
 class Parser {
 public:
     Parser(std::vector<Token> tokens): tokens_(std::move(tokens)) {}
-    std::vector<std::unique_ptr<Statement>> parse();
+    // Parse code into functions.
+    // By definition the first function (index 0) is main with arity 0.
+    std::vector<std::unique_ptr<Function>> parse();
+    std::unique_ptr<Statement> declaration();
 
 private:
     bool match(std::vector<TokenType> types);
     bool match(TokenType type) { return match(std::vector<TokenType>{type}); }
     bool check(TokenType type);
+    bool check_next(TokenType type);
     Token advance();
     bool isAtEnd();
     Token peek();
@@ -24,14 +28,14 @@ private:
 
     std::vector<std::unique_ptr<Statement>> block();
 
-    std::unique_ptr<Statement> declaration();
     std::unique_ptr<Statement> var_declaration();
-    std::unique_ptr<Statement> function();
+    std::unique_ptr<Function> function();
     std::unique_ptr<Statement> statement();
     std::unique_ptr<Statement> if_statement();
     std::unique_ptr<Statement> while_statement();
     std::unique_ptr<Statement> expression_statement();
     std::unique_ptr<Statement> putc();
+    std::unique_ptr<Statement> call();
 
     std::unique_ptr<Expression> assignment();
     std::unique_ptr<Expression> logic_and();
@@ -42,7 +46,6 @@ private:
     std::unique_ptr<Expression> addition();
     std::unique_ptr<Expression> multiplication();
     std::unique_ptr<Expression> unary();
-    std::unique_ptr<Expression> call(Token function);
     std::unique_ptr<Expression> primary();
 
 

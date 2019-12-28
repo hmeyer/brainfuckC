@@ -9,12 +9,9 @@
 class Statement {
 public:
     virtual ~Statement() {}
-    void evaluate(BfSpace* bf) {
-        auto i = bf->indent();
-        *bf << Comment{DebugString()};
-        evaluate_impl(bf);
-    }
+    virtual void evaluate(BfSpace* bf) const;
     virtual void evaluate_impl(BfSpace* bf) const = 0;
+    virtual std::string Description() const = 0;
     virtual std::string DebugString() const = 0;
 };
 
@@ -22,6 +19,7 @@ class VarDeclaration : public Statement {
 public:
     VarDeclaration(Token name, std::unique_ptr<Expression> initializer) : name_(std::move(name)), initializer_(std::move(initializer)) {}
     void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
     std::string DebugString() const override;
  private:
     Token name_;
@@ -32,6 +30,7 @@ class Putc : public Statement {
 public:
     Putc(std::unique_ptr<Expression> value) : value_(std::move(value)) {}
     void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
     std::string DebugString() const override;
  private:
     std::unique_ptr<Expression> value_;
@@ -41,6 +40,7 @@ class ExpressionStatement : public Statement {
 public:
     ExpressionStatement(std::unique_ptr<Expression> value) : value_(std::move(value)) {}
     void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
     std::string DebugString() const override;
  private:
     std::unique_ptr<Expression> value_;
@@ -49,7 +49,9 @@ public:
 class Block : public Statement {
 public:
     Block(std::vector<std::unique_ptr<Statement>> statements) : statements_(std::move(statements)) {}
+    void evaluate(BfSpace* bf) const override { evaluate_impl(bf); }
     void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
     std::string DebugString() const override;
  private:
     std::vector<std::unique_ptr<Statement>> statements_;
@@ -60,6 +62,7 @@ public:
     If(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> then_branch, std::unique_ptr<Statement> else_branch)
       : condition_(std::move(condition)), then_branch_(std::move(then_branch)), else_branch_(std::move(else_branch)) {}
     void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
     std::string DebugString() const override;
  private:
     std::unique_ptr<Expression> condition_;
@@ -72,6 +75,7 @@ public:
     While(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> body)
       : condition_(std::move(condition)), body_(std::move(body)) {}
     void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
     std::string DebugString() const override;
  private:
     std::unique_ptr<Expression> condition_;
@@ -82,7 +86,10 @@ class Function : public Statement {
 public:
     Function(Token name, std::vector<Token> parameters, std::unique_ptr<Statement> body)
       : name_(std::move(name)), parameters_(std::move(parameters)), body_(std::move(body)){}
+    void set_body(std::unique_ptr<Statement> body) { body_ = std::move(body); }
+    void evaluate(BfSpace* bf) const override { evaluate_impl(bf); }
     void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
     std::string DebugString() const override;
     const std::string& name() const { return std::get<std::string>(name_.value); }
     int arity() const { return parameters_.size(); }
@@ -90,6 +97,20 @@ public:
     Token name_;
     std::vector<Token> parameters_;
     std::unique_ptr<Statement> body_;
+};
+
+
+class Call : public Statement {
+public:
+    Call(Token callee, std::vector<std::unique_ptr<Expression>> arguments) : callee_(std::move(callee)), arguments_(std::move(arguments)) {}
+    void evaluate_impl(BfSpace* bf) const override;
+    std::string Description() const override;
+    std::string DebugString() const override;
+    int arity() const { return arguments_.size(); }
+ private:
+    void print(BfSpace* bf) const;
+    Token callee_;
+    std::vector<std::unique_ptr<Expression>> arguments_;
 };
 
 #endif  // STATEMENT_HPP

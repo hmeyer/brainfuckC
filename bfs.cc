@@ -26,29 +26,39 @@ handler()
 int main(int argc, const char * argv[]) {
 //    std::set_terminate( handler );
     constexpr char nbf_code[] = R"(
-        var pre_fib = 0;
-        var fib = 1;
-        fun my_function(a, b) {
-            a = a + b;
+        fun my_function(x) {
+            putc('a' + x);
         }
-        while(fib < 1000) {
-            print(fib);
-            putc('\n');
-            my_function(0*9, 1, 8);
 
-            var t = fib;
-            fib = fib + pre_fib;
-            pre_fib = t;
-        }
+        putc('m');
+
+        var p = 1;
+        my_function(p);
+
+        putc('n');
+
+        // var pre_fib = 0;
+        // var fib = 1;
+        // fun my_function(a) {
+        //    print(a * 10);
+        //    putc('\n');
+        // }
+        // while(fib < 1000) {
+        //     print(fib);
+        //     putc('\n');
+
+        //     var t = fib;
+        //     fib = fib + pre_fib;
+        //     pre_fib = t;
+        // }
+        // my_function(fib);
     )";
     Scanner scanner(nbf_code);
     auto tokens = scanner.scanTokens();             
     Parser parser(tokens);
-    auto statements = parser.parse();
+    auto functions = parser.parse();
     BfSpace bfs;
-    for (const auto& s : statements) {
-        s->evaluate(&bfs);
-    }
+    bfs.register_functions(functions);
     std::cout << bfs.code() << std::endl;
     return 0;
 }

@@ -1,10 +1,28 @@
 #include "parser.hpp"
+#include "scanner.hpp"
 
-std::vector<std::unique_ptr<Statement>> Parser::parse() {
-    std::vector<std::unique_ptr<Statement>> result;
+namespace {
+std::unique_ptr<Function> fake_main() {
+    Token main_token{IDENTIFIER, "main", "main", -1};
+    return std::make_unique<Function>(std::move(main_token), std::vector<Token>(), nullptr);
+}
+void set_fake_main_body(std::vector<std::unique_ptr<Statement>> body, Function* main) {
+    main->set_body(std::make_unique<Block>(std::move(body)));
+}
+}  // namespace
+
+std::vector<std::unique_ptr<Function>> Parser::parse() {
+    std::vector<std::unique_ptr<Function>> result;
+    result.push_back(fake_main());
+    std::vector<std::unique_ptr<Statement>> main;
     while(!isAtEnd()) {
-        result.push_back(declaration());
+        if (match(FUN)) {
+            result.push_back(function());
+        } else {
+            main.push_back(declaration());
+        }
     }
+    set_fake_main_body(std::move(main), result[0].get());
     return result;
 }
 
@@ -20,12 +38,11 @@ std::vector<std::unique_ptr<Statement>> Parser::block() {
 }
 
 std::unique_ptr<Statement> Parser::declaration() {
-    if (match(FUN)) return function();
     if (match(VAR)) return var_declaration();
     return statement();                     
 }
 
-std::unique_ptr<Statement> Parser::function() {
+std::unique_ptr<Function> Parser::function() {
     Token name = consume(IDENTIFIER, "Expect function name.");
     consume(LEFT_PAREN, "Expect '(' after function name.");       
     std::vector<Token> parameters;                       
@@ -59,6 +76,9 @@ std::unique_ptr<Statement> Parser::statement() {
     }
     if (match(PUTC)) {
         return putc();
+    }
+    if (check(IDENTIFIER) && check_next(LEFT_PAREN)) {
+            return call();
     }
     if (match(WHILE)) {
         return while_statement();
@@ -160,6 +180,11 @@ bool Parser::check(TokenType type) {
     return peek().type == type;
 }
 
+bool Parser::check_next(TokenType type) {
+    if (current_ + 1 == tokens_.size()) return false;         
+    return tokens_[current_ + 1].type == type;
+}
+
 Token Parser::advance() {
     if (!isAtEnd()) current_++;
     return previous();     
@@ -255,7 +280,9 @@ std::unique_ptr<Expression> Parser::unary() {
     return primary();     
 }
 
-std::unique_ptr<Expression> Parser::call(Token callee) {
+std::unique_ptr<Statement> Parser::call() {
+    Token callee = consume(IDENTIFIER, "expected identifier for call statement");
+    Token lparen = consume(LEFT_PAREN, "expected '(' for call statement");
     std::vector<std::unique_ptr<Expression>> arguments;
     if (!check(RIGHT_PAREN)) {                                        
       do {                                                            
@@ -263,7 +290,8 @@ std::unique_ptr<Expression> Parser::call(Token callee) {
       } while (match(COMMA));                                         
     }
 
-    Token paren = consume(RIGHT_PAREN, "Expect ')' after arguments.");
+    Token rparen = consume(RIGHT_PAREN, "expected ')' after arguments");
+    Token semicolon = consume(SEMICOLON, "expected ';' after call statement");
 
     return std::make_unique<Call>(std::move(callee), std::move(arguments));         
 }
@@ -275,10 +303,6 @@ std::unique_ptr<Expression> Parser::primary() {
 
 
     if (match(IDENTIFIER)) {
-        auto maybe_callee = previous();
-        if (match(LEFT_PAREN)) {
-            return call(maybe_callee);
-        }
         return std::make_unique<VariableExpression>(previous());       
     }
 
