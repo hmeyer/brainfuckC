@@ -19,6 +19,7 @@ public:
     Env() {}
     explicit Env(std::unique_ptr<Env> parent, int min_next_free = 0): parent_(std::move(parent)), next_free_(std::max(min_next_free, parent_->next_free_)) {}
     Variable add(const std::string& name, int size = 1, bool on_top = false);
+    Variable add_alias(const std::string& original, const std::string& alias);
     Variable add_or_get(const std::string& name, int size = 1);
     Variable get(const std::string& name);
     Variable addTemp(int size = 1, bool on_top = false);
@@ -134,6 +135,7 @@ class BfSpace {
 
     Variable add(const std::string& name, int size = 1) { return env_->add(name, size); }
     Variable add_or_get(const std::string& name, int size = 1) { return env_->add_or_get(name, size); }
+    void register_parameter(int num, const std::string& name);
     Variable get(const std::string& name) const  { return env_->get(name); }
     Variable get_return_position() const;
     Variable get_call_pending() const;

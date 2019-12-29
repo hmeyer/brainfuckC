@@ -26,23 +26,14 @@ handler()
 int main(int argc, const char * argv[]) {
 //    std::set_terminate( handler );
     constexpr char nbf_code[] = R"(
-        fun my_function(x) {
-            putc('a' + x);
+        fun println(x) {
+            putc('p');
+            print(x);
+            putc('\n');
         }
-
-        putc('m');
-
-        var p = 1;
-        my_function(p);
-
-        putc('n');
 
         // var pre_fib = 0;
         // var fib = 1;
-        // fun my_function(a) {
-        //    print(a * 10);
-        //    putc('\n');
-        // }
         // while(fib < 1000) {
         //     print(fib);
         //     putc('\n');
@@ -51,7 +42,10 @@ int main(int argc, const char * argv[]) {
         //     fib = fib + pre_fib;
         //     pre_fib = t;
         // }
-        // my_function(fib);
+        // println(fib);
+        var i = 1;
+        println(i);
+        putc('0' + i);
     )";
     Scanner scanner(nbf_code);
     auto tokens = scanner.scanTokens();             

@@ -110,8 +110,8 @@ std::string While::DebugString() const {
 
 void Function::evaluate_impl(BfSpace* bf) const {
     auto popper = bf->push_scope();
-    for(const auto& p : parameters_) {
-        bf->add(std::get<std::string>(p.value));
+    for(int i = 0; i < parameters_.size(); i++) {
+        bf->register_parameter(i, std::get<std::string>(parameters_[i].value));
     }
     body_->evaluate(bf);
 }

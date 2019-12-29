@@ -50,6 +50,17 @@ Variable Env::add(const std::string& name, int size, bool on_top) {
     return Variable(this, it->second, name);
 }
 
+Variable Env::add_alias(const std::string& original, const std::string& alias) {
+    Variable orig = get(original);
+    auto [unused_it, inserted] = vars_.insert(std::make_pair(std::string(alias), orig.index()));
+    if (!inserted) {
+        throw std::runtime_error("tried to insert already existing " + alias);
+    }
+    return Variable(this, orig.index(), alias);
+}
+
+
+
 Variable Env::add_or_get(const std::string& name, int size) {
     auto [it, inserted] = vars_.insert(std::make_pair(std::string(name), 0));
     if (!inserted) {
@@ -201,13 +212,19 @@ Variable BfSpace::get_return_position() const {
     return get(kReturnPosition);
 }
 
+void BfSpace::register_parameter(int num, const std::string& name) {
+    env_->add_alias(parameter_name(num), name);
+}
+
+
 Variable BfSpace::get_call_pending() const {
     return get(kCallPending);
 }
 
-Variable BfSpace::op_add(Variable _x, Variable y) {
-    *this << Comment{"add(" + _x.DebugString() + "; " + y.DebugString() + ")"};
+Variable BfSpace::op_add(Variable _x, Variable _y) {
+    *this << Comment{"add(" + _x.DebugString() + "; " + _y.DebugString() + ")"};
     Variable x = wrap_temp(std::move(_x));
+    Variable y = wrap_temp(std::move(_y));
     *this << y << "[-" << x << "+" << y << "]";
     return x;
 }
@@ -225,12 +242,12 @@ Variable BfSpace::op_mul(Variable _x, Variable y) {
     Variable x = wrap_temp(std::move(_x));
     Variable t0 = addTemp();
     Variable t1 = addTemp();
-    *this << t0 << "[-]";
-    *this << t1 << "[-]";
-    *this << x << "[" << t1 << "+" << x << "-]";
-    *this << t1 << "[";
-    *this << y << "[" << x << "+" << t0 << "+" << y << "-]" << t0 << "[" << y << "+" << t0 << "-]";
-    *this << t1 << "-]";
+    *this << t0 << "[-]"
+          << t1 << "[-]"
+          << x << "[" << t1 << "+" << x << "-]"
+          << t1 << "["
+          << y << "[" << x << "+" << t0 << "+" << y << "-]" << t0 << "[" << y << "+" << t0 << "-]"
+          << t1 << "-]";
     return x;
 }
 
@@ -242,28 +259,28 @@ Variable BfSpace::op_div(Variable _x, Variable y) {
     Variable t2 = addTemp();
     Variable t3 = addTemp();
 
-    *this << t0 << "[-]";
-    *this << t1 << "[-]";
-    *this << t2 << "[-]";
-    *this << t3 << "[-]";
-    *this << x << "[" << t0 << "+" << x<< "-]";
-    *this << t0 << "[";
+    *this << t0 << "[-]"
+          << t1 << "[-]"
+          << t2 << "[-]"
+          << t3 << "[-]"
+          << x << "[" << t0 << "+" << x<< "-]"
+          << t0 << "[";
     {
         auto i = indent();
-        *this << y << "[" << t1 << "+" << t2 << "+" << y << "-]";
-        *this << t2 << "[" << y<< "+" << t2 << "-]";
-        *this << t1 << "[";
+        *this << y << "[" << t1 << "+" << t2 << "+" << y << "-]"
+              << t2 << "[" << y<< "+" << t2 << "-]"
+              << t1 << "[";
         {
             auto i = indent();
-            *this <<   t2 << "+";
-            *this <<   t0 << "-" << "[" << t2 << "[-]" << t3 << "+" << t0 << "-]";
-            *this <<   t3 << "[" << t0 << "+" << t3 << "-]";
-            *this <<   t2 << "[";
+            *this <<   t2 << "+"
+                  <<   t0 << "-" << "[" << t2 << "[-]" << t3 << "+" << t0 << "-]"
+                  <<   t3 << "[" << t0 << "+" << t3 << "-]"
+                  <<   t2 << "[";
             {
                 auto i = indent();
-                *this <<    t1 << "-";
-                *this <<    "[" << x << "-" << t1 << "[-]]+";
-                *this <<   t2 << "-]";
+                *this <<    t1 << "-"
+                      <<    "[" << x << "-" << t1 << "[-]]+"
+                      <<   t2 << "-]";
             }
             *this <<  t1 << "-]";
         }
@@ -279,14 +296,13 @@ Variable BfSpace::op_lt(Variable _x, Variable y) {
     Variable temp0 = addTemp();
     Variable temp1 = addTemp(3);
     *this << Comment{"lt(" + x.DebugString() + ";" +  y.DebugString() + ")"};
-    *this << temp0 << "[-]";
-    *this << temp1 << "[-] >[-]+ >[-] <<"; 
-    *this << y << "[" << temp0 << "+" << temp1 << "+" << y << "-]"; 
-    *this << temp0 << "[" << y << "+" << temp0 << "-]"; 
-    *this << x << "[" << temp0 << "+" << x << "-]+"; 
-    *this << temp1 << "[>-]> [< " << x  << "-" << temp0 << "[-]" << temp1 << ">->]<+<"; 
-    *this << temp0 << "[" << temp1 << "- [>-]> [<" << x << "-" << temp0 << "[-]+" << temp1 << ">->]<+<" << temp0 << "-]"; 
-    *this << "\n";
+    *this << temp0 << "[-]"
+          << temp1 << "[-] >[-]+ >[-] <<"
+          << y << "[" << temp0 << "+" << temp1 << "+" << y << "-]"
+          << temp0 << "[" << y << "+" << temp0 << "-]"
+          << x << "[" << temp0 << "+" << x << "-]+"
+          << temp1 << "[>-]> [< " << x  << "-" << temp0 << "[-]" << temp1 << ">->]<+<"
+          << temp0 << "[" << temp1 << "- [>-]> [<" << x << "-" << temp0 << "[-]+" << temp1 << ">->]<+<" << temp0 << "-]"; 
     return x;
 }
 
@@ -296,14 +312,13 @@ Variable BfSpace::op_le(Variable _x, Variable y) {
     Variable temp0 = addTemp();
     Variable temp1 = addTemp(3);
     *this << Comment{"le(" + x.DebugString() + ";" +  y.DebugString() + ")"};
-    *this << temp0 << "[-]"; 
-
-    *this << temp1 << "[-] >[-]+ >[-] <<"; 
-    *this << y << "[" << temp0 << "+ " << temp1 << "+ " << y << "-]"; 
-    *this << temp1 << "[" << y << "+ " << temp1 << "-]"; 
-    *this << x << "[" << temp1 << "+ " << x << "-]"; 
-    *this << temp1 << "[>-]> [< " << x << "+ " << temp0 << "[-] " << temp1 << ">->]<+<"; 
-    *this << temp0 << "[" << temp1 << "- [>-]> [< " << x << "+ " << temp0 << "[-]+ " << temp1 << ">->]<+< " << temp0 << "-]"; 
+    *this << temp0 << "[-]"
+          << temp1 << "[-] >[-]+ >[-] <<"
+          << y << "[" << temp0 << "+ " << temp1 << "+ " << y << "-]"
+          << temp1 << "[" << y << "+ " << temp1 << "-]"
+          << x << "[" << temp1 << "+ " << x << "-]"
+          << temp1 << "[>-]> [< " << x << "+ " << temp0 << "[-] " << temp1 << ">->]<+<"
+          << temp0 << "[" << temp1 << "- [>-]> [< " << x << "+ " << temp0 << "[-]+ " << temp1 << ">->]<+< " << temp0 << "-]"; 
     return x;
 }
 
@@ -322,9 +337,9 @@ Variable BfSpace::op_neg(Variable _x) {
     *this << Comment{"neg(" + _x.DebugString() + ")"};
     Variable x = wrap_temp(std::move(_x));
     Variable t = addTemp();
-    *this << t << "[-]";
-    *this << x << "[" << t << "-" << x << "-]";
-    *this << t << "[" << x << "-" << t << "+]";
+    *this << t << "[-]"
+          << x << "[" << t << "-" << x << "-]"
+          << t << "[" << x << "-" << t << "+]";
     return x;
 }
 
@@ -332,9 +347,9 @@ Variable BfSpace::op_not(Variable _x) {
     *this << Comment{"not(" + _x.DebugString() + ")"};
     Variable x = wrap_temp(std::move(_x));
     Variable t = addTemp();
-    *this << t << "[-]";
-    *this << x << "[" << t << "+" << x << "[-]]+";
-    *this << t << "[" << x << "-" << t << "-]";
+    *this << t << "[-]"
+          << x << "[" << t << "+" << x << "[-]]+"
+          << t << "[" << x << "-" << t << "-]";
     return x;
 }
 
@@ -342,11 +357,12 @@ Variable BfSpace::op_and(Variable x, std::function<Variable()> y) {
     Variable result = addTempWithValue(0);
     Variable t = wrap_temp(std::move(x));
     *this << t << "[";
+    auto i = indent();
     copy(y(), t);
-    *this <<   t << "[";
-    *this <<   result << "+";
-    *this <<   t << "[-]]";
-    *this << t << "]";
+    *this << t << "["
+          << result << "+"
+          << t << "[-]]"
+          << t << "]";
     return result;
 }
 
@@ -354,12 +370,13 @@ Variable BfSpace::op_or(Variable x, std::function<Variable()> y) {
     Variable result = addTempWithValue(0);
     Variable t = wrap_temp(std::move(x));
     Variable flag = addTemp();
-    *this << flag << "[-]+";  // Set t = 1
-    *this << t << "[" << result << "+" << flag << "-" << t << "[-]]";
-    *this << flag << "[" << flag << "-";
+    *this << flag << "[-]+"  // Set t = 1
+          << t << "[" << result << "+" << flag << "-" << t << "[-]]"
+          << flag << "[" << flag << "-";
+    auto i = indent();
     copy(y(), t);
-    *this << t << "[" << result << "+" << t << "[-]]";
-    *this << flag << "]";
+    *this << t << "[" << result << "+" << t << "[-]]"
+          << flag << "]";
     return result;
 }
 
@@ -376,16 +393,16 @@ void BfSpace::op_if_then_else(Variable condition, std::function<void()> then_bra
         *this << c << "[-]]";
     } else {
         Variable t0 = addTemp();
-        *this << t0 << "[-]+";
-        *this << c << "[";
+        *this << t0 << "[-]+"
+              << c << "[";
         {
             auto i = indent();
             then_branch();
         }
-        *this <<  t0 << "-";
-        *this <<  c << "[-]";
-        *this << "]";
-        *this << t0 << "[";
+        *this <<  t0 << "-"
+              <<  c << "[-]"
+              << "]"
+              << t0 << "[";
         {
             auto i = indent();
             else_branch();
@@ -411,10 +428,9 @@ void BfSpace::copy(const Variable& src, const Variable& dst) {
     auto i = indent();
     *this << Comment{"copy(" + src.DebugString() + "; " + dst.DebugString() + ")"};
     Variable t = addTemp();
-    *this << t << "[-]";
-    *this << dst << "[-]";
-    *this << src << "[" << dst << "+" << t << "+" << src << "-]";
-    *this << t << "[" << src << "+" << t << "-" << "]";
+    *this << t << "[-]" << dst << "[-]" 
+          << src << "[" << dst << "+" << t << "+" << src << "-]"
+          << t << "[" << src << "+" << t << "-" << "]";
 }
 
 Variable BfSpace::wrap_temp(Variable v) {
