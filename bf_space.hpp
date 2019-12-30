@@ -16,25 +16,32 @@ class Function;
 
 class Env {
 public:
-    Env() {}
-    explicit Env(std::unique_ptr<Env> parent, int min_next_free = 0): parent_(std::move(parent)), next_free_(std::max(min_next_free, parent_->next_free_)) {}
-    Variable add(const std::string& name, int size = 1, bool on_top = false);
+    explicit Env(int named_reservation_size = 0): named_reservation_size_(named_reservation_size), next_free_(named_reservation_size_) {}
+    explicit Env(std::unique_ptr<Env> parent, int min_next_free = 0)
+      : parent_(std::move(parent)),
+        named_reservation_size_(parent_->named_reservation_size_),
+        next_free_(std::max(std::max(min_next_free, parent_->next_free_), named_reservation_size_)) {
+        }
+    Variable add(const std::string& name, int size = 1);
     Variable add_alias(const std::string& original, const std::string& alias);
     Variable add_or_get(const std::string& name, int size = 1);
     Variable get(const std::string& name);
-    Variable addTemp(int size = 1, bool on_top = false);
+    Variable addTemp(int size = 1);
     void remove(int index);
     std::unique_ptr<Env> release_parent() { return std::move(parent_); }
     int top() const { return next_free_; }
+    int num_named_cells() const;
 
     private:
-    int next_free(int size, bool on_top = false);
+    int next_free(int size);
 
     std::unique_ptr<Env> parent_;
     std::unordered_map<std::string, int> vars_;
     std::unordered_map<int, int> temp_sizes_;
     std::set<int> free_list_;
+    int named_reservation_size_ = 0;
     int next_free_ = 0;
+    int num_named_cells_ = 0;
 };
 
 class Variable {
@@ -46,7 +53,7 @@ class Variable {
         other.parent_ = nullptr;
     }
     Variable& operator=(const Variable& other) = delete;
-    Variable get_predecessor() const { return Variable{parent_, index_ - 1, DebugString() + "_predecessor"}; }
+    Variable get_predecessor(int num = 1) const { return Variable{parent_, index_ - num, DebugString() + "_" + std::to_string(num) + "predecessor"}; }
 
     ~Variable() {
         if (is_temp() && parent_ != nullptr) {
@@ -156,7 +163,7 @@ class BfSpace {
     Variable op_and(Variable x, std::function<Variable()> y);
     Variable op_or(Variable x, std::function<Variable()> y);
     void op_if_then_else(Variable condition, std::function<void()> then_branch, std::function<void()> else_branch = std::function<void()>());
-    void op_call_function(std::string_view name, std::vector<Variable> arguments);
+    void op_call_function(const std::string& name, std::vector<Variable> arguments);
 
     void copy(const Variable& src, const Variable& dst);
     class [[nodiscard]] ScopePopper {
@@ -183,7 +190,7 @@ class BfSpace {
         // for function dispatch.
         std::string generate_dispatch_wrapped_code();
         void reset_env_and_code();
-        void finish_function_call();
+        void finish_function_call(const std::string& name);
         void append_code(std::string_view t);
 
         std::string code_;
@@ -192,7 +199,7 @@ class BfSpace {
         std::unique_ptr<FunctionStorage> functions_;
         int indent_;
         bool is_on_new_line_ = true;
-        int max_stack_size_ = 0;
+        std::unordered_map<std::string, int> max_named_cells_per_function_call_;
         int num_function_calls_ = 0;
 };
 

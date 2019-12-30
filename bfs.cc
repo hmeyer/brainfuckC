@@ -28,8 +28,7 @@ int main(int argc, const char * argv[]) {
     constexpr char nbf_code[] = R"(
         fun println(x) {
             putc('p');
-            print(x);
-            putc('\n');
+            putc('0' + x);
         }
 
         // var pre_fib = 0;
@@ -44,7 +43,7 @@ int main(int argc, const char * argv[]) {
         // }
         // println(fib);
         var i = 1;
-        println(i);
+        println(i+1);
         putc('0' + i);
     )";
     Scanner scanner(nbf_code);

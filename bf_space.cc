@@ -1,5 +1,6 @@
 #include "bf_space.hpp"
 #include "statement.hpp"
+#include <unordered_set>
 
 namespace {
 int find_consecutive(const std::set<int>& s, int size, int next_free) {
@@ -29,8 +30,8 @@ std::string Variable::DebugString() const {
 }
 
 
-int Env::next_free(int size, bool on_top) {
-    int start = on_top?-1:find_consecutive(free_list_, size, next_free_);
+int Env::next_free(int size) {
+    int start = find_consecutive(free_list_, size, next_free_);
     if (start == -1) {
         start = next_free_;
     }
@@ -41,12 +42,18 @@ int Env::next_free(int size, bool on_top) {
     return start;
 }
 
-Variable Env::add(const std::string& name, int size, bool on_top) {
+Variable Env::add(const std::string& name, int size) {
     auto [it, inserted] = vars_.insert(std::make_pair(std::string(name), 0));
     if (!inserted) {
         throw std::runtime_error("tried to insert already existing " + name);
     }
-    it->second = next_free(size, on_top);
+    if (num_named_cells() + size <= named_reservation_size_) {
+        it->second = num_named_cells();
+    } else {
+        it->second = next_free(size);
+    }
+    num_named_cells_ += size;
+
     return Variable(this, it->second, name);
 }
 
@@ -81,8 +88,8 @@ Variable Env::get(const std::string& name) {
     return Variable(this, it->second, name);
 }
 
-Variable Env::addTemp(int size, bool on_top) {
-    int index = next_free(size, on_top);
+Variable Env::addTemp(int size) {
+    int index = next_free(size);
     if (size != 1) { 
         temp_sizes_[index] = size;
     }
@@ -105,6 +112,15 @@ void Env::remove(int index) {
     }
 }
 
+int Env::num_named_cells() const {
+    int result = num_named_cells_;
+    if (parent_ != nullptr) {
+        result += parent_->num_named_cells();
+    }
+    return result;
+}
+
+
 namespace {
 
 constexpr char kCalledFunctionIndex[] = "__CalledFunctionIndex";
@@ -118,7 +134,7 @@ std::string parameter_name(int num) {
 
 void add_function_vars(int max_arity, Env* env) {
     for (const char* var_name : {kCalledFunctionIndex, kReturnPosition, kCallPending}) {
-        env->add(std::string(var_name), 1, true);
+        env->add(std::string(var_name));
     }
     for (int i = 0; i < max_arity; i++) {
         env->add(parameter_name(i));
@@ -471,11 +487,16 @@ void FunctionStorage::define_function(const Function& function) {
 }
 
 void BfSpace::reset_env_and_code() {
-    env_ = std::make_unique<Env>();
+    int max_cells = 0;
+    for (const auto& name_and_max : max_named_cells_per_function_call_) {
+        max_cells = std::max(max_cells, name_and_max.second);
+    }
+    env_ = std::make_unique<Env>(max_cells);
     add_function_vars(functions_->max_arity(), env_.get());
     code_.clear();
     is_on_new_line_ = true;
     current_tape_pos_ = 0;
+    num_function_calls_ = -1;
 }
 
 std::string BfSpace::code() {
@@ -483,14 +504,14 @@ std::string BfSpace::code() {
     reset_env_and_code();
     generate_dispatch_wrapped_code();
     reset_env_and_code();
+    return generate_dispatch_wrapped_code();
     // Then run generator for realz.
-    auto result = generate_dispatch_wrapped_code();
-    return result;
 }
 
-void BfSpace::finish_function_call() {
+void BfSpace::finish_function_call(const std::string& name) {
+    int num_cells = max_named_cells_per_function_call_[name];
     *this << Comment{"\nfinish the function call by jumping down the stack and clear call pending: "}
-          << std::string(max_stack_size_, '<') << get(kCallPending) << "[-]";
+          << std::string(num_cells, '<') << get(kCallPending) << "[-]";
 }
 
 std::string BfSpace::generate_dispatch_wrapped_code() {
@@ -502,16 +523,17 @@ std::string BfSpace::generate_dispatch_wrapped_code() {
     {
         auto i = indent();
         for(const auto& name_and_f : functions_->functions()) {
+            const auto& name = name_and_f.first;
             const auto& f = name_and_f.second;
             auto cond = op_eq(get(kCalledFunctionIndex), addTempWithValue(f.index));
-            op_if_then_else(std::move(cond), [&f, this](){ 
+            op_if_then_else(std::move(cond), [&f, &name, this](){ 
                 move_to_top();
                 auto scope_popper = push_scope();
                 auto i = indent();
                 *this << Comment{"\ndefine " + f.function->Description()};
                 num_function_calls_ = 0;
                 f.function->evaluate(this);
-                op_if_then_else(op_not(get(kCallPending)), [this]() {finish_function_call();});
+                op_if_then_else(op_not(get(kCallPending)), [this, &name]() {finish_function_call(name);});
             });
         }
     }
@@ -525,19 +547,20 @@ void BfSpace::register_functions(const std::vector<std::unique_ptr<Function>>& f
     }
 }
 
-void BfSpace::op_call_function(std::string_view name, std::vector<Variable> arguments) {
+void BfSpace::op_call_function(const std::string& name, std::vector<Variable> arguments) {
     *this << Comment{"calling " + std::string(name)};
     auto i = indent();
     copy(addTempWithValue(++num_function_calls_), get(kReturnPosition));
-    max_stack_size_ = std::max(max_stack_size_, env_->top());
+
+    int& max_named_cells = max_named_cells_per_function_call_[name];
+    max_named_cells = std::max(max_named_cells, env_->num_named_cells());
+
     int function_index = functions_->lookup_function(name, arguments.size());
-    auto scope_popper = push_scope(max_stack_size_);
-    add_function_vars(functions_->max_arity(), env_.get());
+    *this << Comment{"jump up the stackframe: "} << std::string(max_named_cells, '>');
     for (int i = 0; i < arguments.size(); i++) {
-        copy(arguments[i], get(parameter_name(i)));
+        copy(arguments[i].get_predecessor(max_named_cells), get(parameter_name(i)));
     }
     copy(addTempWithValue(function_index), get(kCalledFunctionIndex));
     *this << get(kReturnPosition) << "[-]";
     *this << get(kCallPending) << "[-]+";
-    *this << Comment{"jump up the stackframe: "} << std::string(max_stack_size_, '>');
 }
