@@ -21,11 +21,15 @@ int find_consecutive(const std::set<int>& s, int size, int next_free) {
 }
 }  // namespace
 
-std::string Variable::DebugString() const { 
+std::string Variable::DebugString() const {
+    std::string i_str = std::to_string(std::abs(index_));
+    if (index_ < 0) {
+        i_str = "neg" + i_str;
+    }
     if (name_.empty()) {
-        return "~t{" + std::to_string(index_) + "}";
+        return "~t{" + i_str + "}";
     } else {
-        return name_ + "{" + std::to_string(index_) + "}";
+        return name_ + "{" + i_str + "}";
     }
 }
 
