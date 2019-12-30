@@ -57,7 +57,6 @@ Variable Env::add(const std::string& name, int size) {
         it->second = next_free(size);
     }
     num_named_cells_ += size;
-
     return Variable(this, it->second, name);
 }
 
@@ -73,12 +72,11 @@ Variable Env::add_alias(const std::string& original, const std::string& alias) {
 
 
 Variable Env::add_or_get(const std::string& name, int size) {
-    auto [it, inserted] = vars_.insert(std::make_pair(std::string(name), 0));
-    if (!inserted) {
+    try {
         return get(name);
+    } catch (const std::runtime_error& e) {
+        return add(name, size);
     }
-    it->second = next_free(size);
-    return Variable(this, it->second, name);
 }
 
 Variable Env::get(const std::string& name) {
@@ -131,6 +129,7 @@ constexpr char kCalledFunctionIndex[] = "__CalledFunctionIndex";
 constexpr char kReturnPosition[] = "__ReturnPosition";
 constexpr char kCallPending[] = "__CallPending";
 constexpr char kParameterPrefix[] = "__Parameter";
+constexpr char kPreCallParameter[] = "__PreCallParameter";
 
 std::string parameter_name(int num) {
     return kParameterPrefix + std::to_string(num);
@@ -492,7 +491,7 @@ void FunctionStorage::define_function(const Function& function) {
 
 void BfSpace::reset_env_and_code() {
     int max_cells = 0;
-    for (const auto& name_and_max : max_named_cells_per_function_call_) {
+    for (const auto& name_and_max : max_used_cells_per_function_call_) {
         max_cells = std::max(max_cells, name_and_max.second);
     }
     env_ = std::make_unique<Env>(max_cells);
@@ -513,8 +512,8 @@ std::string BfSpace::code() {
 }
 
 void BfSpace::finish_function_call(const std::string& name) {
-    int num_cells = max_named_cells_per_function_call_[name];
-    *this << Comment{"\nfinish the function call by jumping down the stack and clear call pending: "}
+    int num_cells = max_used_cells_per_function_call_[name];
+    *this << Comment{"finish the function call by jumping down the stack and clear call pending: "}
           << std::string(num_cells, '<') << get(kCallPending) << "[-]";
 }
 
@@ -553,10 +552,17 @@ void BfSpace::register_functions(const std::vector<std::unique_ptr<Function>>& f
 
 void BfSpace::op_call_function(const std::string& name, std::vector<Variable> arguments) {
     *this << Comment{"calling " + std::string(name)};
+    for (int i = 0; i < arguments.size(); i++) {
+        if (arguments[i].is_temp()) {
+            auto named_variable = add_or_get(kPreCallParameter + std::to_string(i));
+            copy(arguments[i], named_variable);
+            arguments[i] = std::move(named_variable);
+        }
+    }
     auto i = indent();
     copy(addTempWithValue(++num_function_calls_), get(kReturnPosition));
 
-    int& max_named_cells = max_named_cells_per_function_call_[name];
+    int& max_named_cells = max_used_cells_per_function_call_[name];
     max_named_cells = std::max(max_named_cells, env_->num_named_cells());
 
     int function_index = functions_->lookup_function(name, arguments.size());

@@ -20,8 +20,7 @@ public:
     explicit Env(std::unique_ptr<Env> parent, int min_next_free = 0)
       : parent_(std::move(parent)),
         named_reservation_size_(parent_->named_reservation_size_),
-        next_free_(std::max(std::max(min_next_free, parent_->next_free_), named_reservation_size_)) {
-        }
+        next_free_(std::max(std::max(min_next_free, parent_->next_free_), named_reservation_size_)) {}
     Variable add(const std::string& name, int size = 1);
     Variable add_alias(const std::string& original, const std::string& alias);
     Variable add_or_get(const std::string& name, int size = 1);
@@ -53,6 +52,13 @@ class Variable {
         other.parent_ = nullptr;
     }
     Variable& operator=(const Variable& other) = delete;
+    Variable& operator=(Variable&& other) {
+        parent_ = other.parent_;
+        index_ = other.index_;
+        name_ = std::move(other.name_);
+        other.parent_ = nullptr;
+        return *this;
+    }
     Variable get_predecessor(int num = 1) const { return Variable{parent_, index_ - num, DebugString() + "_" + std::to_string(num) + "predecessor"}; }
 
     ~Variable() {
@@ -199,7 +205,7 @@ class BfSpace {
         std::unique_ptr<FunctionStorage> functions_;
         int indent_;
         bool is_on_new_line_ = true;
-        std::unordered_map<std::string, int> max_named_cells_per_function_call_;
+        std::unordered_map<std::string, int> max_used_cells_per_function_call_;
         int num_function_calls_ = 0;
 };
 
