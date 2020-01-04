@@ -1,9 +1,10 @@
 #include "bf_space.hpp"
 #include "statement.hpp"
+#include <optional>
 #include <unordered_set>
 
 namespace {
-int find_consecutive(const std::set<int>& s, int size, int next_free) {
+std::optional<int> find_consecutive(const std::set<int>& s, int size, int next_free) {
     for(int start_pos : s) {
         bool matches = true;
         for(int i = 1; i < size; i++) {
@@ -17,7 +18,7 @@ int find_consecutive(const std::set<int>& s, int size, int next_free) {
             return start_pos;
         }
     }
-    return -1;
+    return std::nullopt;
 }
 }  // namespace
 
@@ -35,15 +36,15 @@ std::string Variable::DebugString() const {
 
 
 int Env::next_free(int size) {
-    int start = find_consecutive(free_list_, size, next_free_);
-    if (start == -1) {
+    auto start = find_consecutive(free_list_, size, next_free_);
+    if (start == std::nullopt) {
         start = next_free_;
     }
     for(int i = 0; i < size; i++) {
-        free_list_.erase(start + i);
+        free_list_.erase(*start + i);
     }
-    next_free_ = std::max(next_free_, start + size);
-    return start;
+    next_free_ = std::max(next_free_, *start + size);
+    return *start;
 }
 
 Variable Env::add(const std::string& name, int size) {
