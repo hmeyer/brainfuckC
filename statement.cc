@@ -1,14 +1,24 @@
 #include "statement.hpp"
 #include "scanner.hpp"
 #include "parser.hpp"
+#include <numeric>
+
+namespace {
+
+Variable statement_condition(BfSpace* bf) {
+    auto not_pending = bf->op_not(bf->get_call_pending());
+    auto correct_return_position = [bf]() { return bf->op_le(bf->get_return_position(), bf->addTempWithValue(bf->num_function_calls())); };
+    return bf->op_and(std::move(not_pending), std::move(correct_return_position));
+}
+
+}  // namespace
 
 void Statement::evaluate(BfSpace* bf) const {
     auto i = bf->indent();
     *bf << Comment{Description()};
     auto not_pending = bf->op_not(bf->get_call_pending());
     auto correct_return_position = [this, bf]() { return bf->op_le(bf->get_return_position(), bf->addTempWithValue(bf->num_function_calls())); };
-    bf->op_if_then_else(bf->op_and(std::move(not_pending), std::move(correct_return_position)),
-                        [this, bf](){evaluate_impl(bf);});
+    bf->op_if_then_else(statement_condition(bf), [this, bf](){evaluate_impl(bf);});
 }
 
 void VarDeclaration::evaluate_impl(BfSpace* bf) const {
@@ -75,6 +85,13 @@ std::string Block::DebugString() const {
     return result;
 }
 
+int Block::num_calls() const {
+    return std::accumulate(statements_.begin(), statements_.end(), 0,
+                           [](int a, const std::unique_ptr<Statement>& b) {
+                               return a + b->num_calls();
+                           });    
+}
+
 void If::evaluate_impl(BfSpace* bf) const {
     bf->op_if_then_else(condition_->evaluate(bf), [&](){then_branch_->evaluate(bf);}, [&](){else_branch_->evaluate(bf);});
 }
@@ -91,11 +108,17 @@ std::string If::DebugString() const {
     return result;
 }
 
+void While::evaluate(BfSpace* bf) const {
+    auto i = bf->indent();
+    *bf << Comment{Description()};
+    evaluate_impl(bf);
+}
+
 void While::evaluate_impl(BfSpace* bf) const {
-    auto c = bf->wrap_temp(condition_->evaluate(bf));
+    auto c = bf->wrap_temp(bf->op_and(condition_->evaluate(bf), [bf](){return statement_condition(bf);}));
     *bf << c << "[";
     body_->evaluate(bf);
-    auto t = condition_->evaluate(bf);
+    auto t = bf->wrap_temp(bf->op_and(condition_->evaluate(bf), [bf](){return statement_condition(bf);}));
     bf->copy(t, c);
     *bf << c << "]";
 }
