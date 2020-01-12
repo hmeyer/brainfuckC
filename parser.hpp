@@ -12,7 +12,9 @@ public:
     Parser(std::vector<Token> tokens): tokens_(std::move(tokens)) {}
     // Parse code into functions.
     // By definition the first function (index 0) is main with arity 0.
-    std::vector<std::unique_ptr<Function>> parse();
+
+    enum AddMain { kAddMain, kDontAddMain };
+    std::vector<std::unique_ptr<Function>> parse(AddMain add_main = kAddMain);
     std::unique_ptr<Statement> declaration();
 
 private:

@@ -110,6 +110,7 @@ public:
 class Call : public Statement {
 public:
     Call(Token callee, std::vector<std::unique_ptr<Expression>> arguments) : callee_(std::move(callee)), arguments_(std::move(arguments)) {}
+    void evaluate(BfSpace* bf) const override;
     void evaluate_impl(BfSpace* bf) const override;
     std::string Description() const override;
     std::string DebugString() const override;

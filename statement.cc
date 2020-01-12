@@ -151,14 +151,16 @@ void While::evaluate(BfSpace* bf) const {
 }
 
 void While::evaluate_impl(BfSpace* bf) const {
-    auto cond = bf->wrap_temp(bf->op_and(condition_->evaluate(bf), [bf](){return statement_condition(bf);}));
-    auto final_cond = condition_add_return_pos_check(bf, std::move(cond), body_->num_calls());
+    auto while_cond = bf->op_and(condition_->evaluate(bf), [=](){return return_position_condition(bf);});
+    auto while_or_return_cond = condition_add_return_pos_check(bf, std::move(while_cond), body_->num_calls());
+    auto final_cond = bf->op_and(std::move(while_or_return_cond), [=](){return bf->get_call_not_pending();});
 
     *bf << final_cond << "[";
     body_->evaluate(bf);
-    auto repeated_cond = bf->wrap_temp(bf->op_and(condition_->evaluate(bf), [bf](){return statement_condition(bf);}));
-    auto repeated_final_cond = condition_add_return_pos_check(bf, std::move(repeated_cond), body_->num_calls());
-    bf->copy(repeated_final_cond, final_cond);
+
+    auto repeating_while_cond = bf->op_and(bf->get_call_not_pending(), [=](){return condition_->evaluate(bf);});
+
+    bf->copy(repeating_while_cond, final_cond);
     *bf << final_cond << "]";
 }
 
@@ -227,6 +229,18 @@ void Call::print(BfSpace* bf) const {
         return statements[0].release();
     }();
     kPrintStatement->evaluate_impl(bf);
+}
+
+void Call::evaluate(BfSpace* bf) const {
+    auto i = bf->indent();
+    *bf << Comment{Description()};
+    bf->op_if_then(statement_condition(bf), [this, bf](){evaluate_impl(bf);});
+
+    auto my_return_cond = bf->op_eq(bf->get_return_position(), bf->addTempWithValue(bf->num_function_calls()));
+    auto my_return_and_not_pending = bf->op_and(std::move(my_return_cond), [=](){return bf->get_call_not_pending();});
+    bf->op_if_then(std::move(my_return_and_not_pending), [=](){
+        *bf << Comment{"Decrease return position since we might be in a while loop"} << bf->get_return_position() << "-";
+    });
 }
 
 void Call::evaluate_impl(BfSpace* bf) const {

@@ -1,5 +1,7 @@
 #include "bf_space.hpp"
 #include "statement.hpp"
+#include "scanner.hpp"
+#include "parser.hpp"
 #include <optional>
 #include <unordered_set>
 
@@ -532,9 +534,40 @@ std::string BfSpace::generate_dispatch_wrapped_code() {
     return code_;
 }
 
+namespace {
+    const char kBrainfuckStandardLib[] = R"(
+        fun nprint(x) {
+            var old_power = 1;
+            while(x or old_power) {
+                var digit = x;
+                var power = 1;
+
+                while(digit > 9) {
+                    digit = digit / 10;
+                    power = power * 10;
+                }
+
+                if (power < old_power) {
+                    putc('0');
+                    old_power = old_power / 10;
+                } else {
+                    putc(digit + '0');
+                    x = x - digit * power;
+                    old_power = power / 10;
+                }
+            }
+        }
+    )";
+
+}  // namespace
+
 void BfSpace::register_functions(const std::vector<std::unique_ptr<Function>>& functions) {
+    static std::vector<std::unique_ptr<Function>> bf_std_lib = Parser(Scanner(kBrainfuckStandardLib).scanTokens()).parse(Parser::kDontAddMain);
     for (const auto &f : functions) {
         functions_->define_function(*f);
+    }
+    for (const auto &bf_std_f : bf_std_lib) {
+        functions_->define_function(*bf_std_f);
     }
 }
 

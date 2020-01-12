@@ -11,18 +11,23 @@ void set_fake_main_body(std::vector<std::unique_ptr<Statement>> body, Function* 
 }
 }  // namespace
 
-std::vector<std::unique_ptr<Function>> Parser::parse() {
+std::vector<std::unique_ptr<Function>> Parser::parse(AddMain add_main) {
     std::vector<std::unique_ptr<Function>> result;
-    result.push_back(fake_main());
+    if (add_main == kAddMain) {
+        result.push_back(fake_main());
+    }
     std::vector<std::unique_ptr<Statement>> main;
     while(!isAtEnd()) {
         if (match(FUN)) {
             result.push_back(function());
         } else {
+            assert(add_main == kAddMain);
             main.push_back(declaration());
         }
     }
-    set_fake_main_body(std::move(main), result[0].get());
+    if (add_main == kAddMain) {
+        set_fake_main_body(std::move(main), result[0].get());
+    }
     return result;
 }
 
