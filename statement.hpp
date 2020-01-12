@@ -64,6 +64,7 @@ class If : public Statement {
 public:
     If(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> then_branch, std::unique_ptr<Statement> else_branch)
       : condition_(std::move(condition)), then_branch_(std::move(then_branch)), else_branch_(std::move(else_branch)) {}
+    void evaluate(BfSpace* bf) const override { evaluate_impl(bf); }
     void evaluate_impl(BfSpace* bf) const override;
     std::string Description() const override;
     std::string DebugString() const override;

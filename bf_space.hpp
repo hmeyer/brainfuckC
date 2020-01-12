@@ -151,9 +151,10 @@ class BfSpace {
     void register_parameter(int num, const std::string& name);
     Variable get(const std::string& name) const  { return env_->get(name); }
     Variable get_return_position() const;
-    Variable get_call_pending() const;
+    Variable get_call_not_pending() const;
     Variable addTemp(int size = 1) { return env_->addTemp(size); }
     Variable addTempWithValue(int value);
+    Variable addTempAsCopy(const Variable& orig);
     Variable wrap_temp(Variable v);
 
     Variable op_add(Variable x, Variable y);
@@ -161,14 +162,16 @@ class BfSpace {
     Variable op_mul(Variable x, Variable y);
     Variable op_div(Variable x, Variable y);
     Variable op_lt(Variable x, Variable y);
+    Variable op_gt(Variable x, Variable y) {return op_lt(std::move(y), std::move(x));}
     Variable op_le(Variable x, Variable y);
+    Variable op_ge(Variable x, Variable y) {return op_le(std::move(y), std::move(x));}
     Variable op_eq(Variable x, Variable y);
     Variable op_neq(Variable x, Variable y);
     Variable op_neg(Variable x);
     Variable op_not(Variable x);
     Variable op_and(Variable x, std::function<Variable()> y);
     Variable op_or(Variable x, std::function<Variable()> y);
-    void op_if_then_else(Variable condition, std::function<void()> then_branch, std::function<void()> else_branch = std::function<void()>());
+    void op_if_then(Variable condition, std::function<void()> then_branch);
     void op_call_function(const std::string& name, std::vector<Variable> arguments);
 
     void copy(const Variable& src, const Variable& dst);

@@ -128,7 +128,7 @@ namespace {
 
 constexpr char kCalledFunctionIndex[] = "__CalledFunctionIndex";
 constexpr char kReturnPosition[] = "__ReturnPosition";
-constexpr char kCallPending[] = "__CallPending";
+constexpr char kCallNotPending[] = "__CallNotPending";
 constexpr char kParameterPrefix[] = "__Parameter";
 constexpr char kPreCallParameter[] = "__PreCallParameter";
 
@@ -137,7 +137,7 @@ std::string parameter_name(int num) {
 }
 
 void add_function_vars(int max_arity, Env* env) {
-    for (const char* var_name : {kCalledFunctionIndex, kReturnPosition, kCallPending}) {
+    for (const char* var_name : {kCalledFunctionIndex, kReturnPosition, kCallNotPending}) {
         env->add(std::string(var_name));
     }
     for (int i = 0; i < max_arity; i++) {
@@ -228,6 +228,12 @@ Variable BfSpace::addTempWithValue(int value) {
     return t;
 }
 
+Variable BfSpace::addTempAsCopy(const Variable& orig) {
+    Variable t = addTemp();
+    copy(orig, t);
+    return t;
+}
+
 Variable BfSpace::get_return_position() const {
     return get(kReturnPosition);
 }
@@ -237,8 +243,8 @@ void BfSpace::register_parameter(int num, const std::string& name) {
 }
 
 
-Variable BfSpace::get_call_pending() const {
-    return get(kCallPending);
+Variable BfSpace::get_call_not_pending() const {
+    return get(kCallNotPending);
 }
 
 Variable BfSpace::op_add(Variable _x, Variable _y) {
@@ -401,34 +407,15 @@ Variable BfSpace::op_or(Variable x, std::function<Variable()> y) {
 }
 
 
-void BfSpace::op_if_then_else(Variable condition, std::function<void()> then_branch, std::function<void()> else_branch) {
+void BfSpace::op_if_then(Variable condition, std::function<void()> then_branch) {
     *this << Comment{"if (" + condition.DebugString() + ")"};
     auto c = wrap_temp(std::move(condition));
-    if (!else_branch) {
-        *this << c << "[";
-        {
-            auto i = indent();
-            then_branch();
-        }
-        *this << c << "[-]]";
-    } else {
-        Variable t0 = addTemp();
-        *this << t0 << "[-]+"
-              << c << "[";
-        {
-            auto i = indent();
-            then_branch();
-        }
-        *this <<  t0 << "-"
-              <<  c << "[-]"
-              << "]"
-              << t0 << "[";
-        {
-            auto i = indent();
-            else_branch();
-        }
-        *this << t0 << "-]";        
+    *this << c << "[";
+    {
+        auto i = indent();
+        then_branch();
     }
+    *this << c << "[-]]";
 }
 
 
@@ -514,15 +501,15 @@ std::string BfSpace::code() {
 
 void BfSpace::finish_function_call(const std::string& name) {
     int num_cells = max_used_cells_per_function_call_[name];
-    *this << Comment{"finish the function call by jumping down the stack and clear call pending: "}
-          << std::string(num_cells, '<') << get(kCallPending) << "[-]";
+    *this << Comment{"finish the function call by jumping down the stack and set call not pending: "}
+          << std::string(num_cells, '<') << get(kCallNotPending) << "[-]+";
 }
 
 std::string BfSpace::generate_dispatch_wrapped_code() {
     op_call_function("main", {});
     *this << Comment{"\nfunction loop"};
     *this << get(kCalledFunctionIndex) << "[";
-    *this << get(kCallPending) << "[-]";
+    *this << get(kCallNotPending) << "[-]+";
 
     {
         auto i = indent();
@@ -530,14 +517,14 @@ std::string BfSpace::generate_dispatch_wrapped_code() {
             const auto& name = name_and_f.first;
             const auto& f = name_and_f.second;
             auto cond = op_eq(get(kCalledFunctionIndex), addTempWithValue(f.index));
-            op_if_then_else(std::move(cond), [&f, &name, this](){ 
+            op_if_then(std::move(cond), [&f, &name, this](){ 
                 move_to_top();
                 auto scope_popper = push_scope();
                 auto i = indent();
                 *this << Comment{"\ndefine " + f.function->Description()};
                 num_function_calls_ = 0;
                 f.function->evaluate(this);
-                op_if_then_else(op_not(get(kCallPending)), [this, &name]() {finish_function_call(name);});
+                op_if_then(get(kCallNotPending), [this, &name]() {finish_function_call(name);});
             });
         }
     }
@@ -573,5 +560,5 @@ void BfSpace::op_call_function(const std::string& name, std::vector<Variable> ar
     }
     copy(addTempWithValue(function_index), get(kCalledFunctionIndex));
     *this << get(kReturnPosition) << "[-]";
-    *this << get(kCallPending) << "[-]+";
+    *this << get(kCallNotPending) << "[-]";
 }
