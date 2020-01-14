@@ -118,7 +118,6 @@ public:
     int arity() const { return arguments_.size(); }
     int num_calls() const override { return 1; }
  private:
-    void print(BfSpace* bf) const;
     Token callee_;
     std::vector<std::unique_ptr<Expression>> arguments_;
 };

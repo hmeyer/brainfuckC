@@ -197,44 +197,6 @@ std::string Function::DebugString() const {
     return Description() + " {\n" + body_->DebugString() + "\n}";
 }
 
-void Call::print(BfSpace* bf) const {
-    if (arguments_.size() != 1) { 
-        throw std::invalid_argument("print should have exactly one argument at line " + std::to_string(callee_.line));
-    }
-
-    Variable p = bf->add_or_get("__print_value");
-    bf->copy(arguments_[0]->evaluate(bf), p);
-    static const Statement* const kPrintStatement = [](){
-        constexpr char printer[] = R"(
-        {
-            var old_power = 1;
-            while(__print_value or old_power) {
-                var digit = __print_value;
-                var power = 1;
-
-                while(digit > 9) {
-                    digit = digit / 10;
-                    power = power * 10;
-                }
-
-                if (power < old_power) {
-                    putc('0');
-                    old_power = old_power / 10;
-                } else {
-                    putc(digit + '0');
-                    __print_value = __print_value - digit * power;
-                    old_power = power / 10;
-                }
-            }
-        }
-        )";
-        auto statements = Parser(Scanner(printer).scanTokens()).parse();
-        assert(statements.size() == 1);
-        return statements[0].release();
-    }();
-    kPrintStatement->evaluate_impl(bf);
-}
-
 void Call::evaluate(BfSpace* bf) const {
     auto i = bf->indent();
     *bf << Comment{Description()};
@@ -249,10 +211,6 @@ void Call::evaluate(BfSpace* bf) const {
 
 void Call::evaluate_impl(BfSpace* bf) const {
     auto callee = std::get<std::string>(callee_.value);
-    if (callee == "print") {
-        print(bf);
-        return;
-    }
     std::vector<Variable> argument_vars;
     for(const auto& a : arguments_) {
         argument_vars.push_back(a->evaluate(bf));
