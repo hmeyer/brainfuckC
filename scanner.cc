@@ -21,6 +21,8 @@ void Scanner::scanToken() {
         case ')': addToken(RIGHT_PAREN); break;    
         case '{': addToken(LEFT_BRACE); break;     
         case '}': addToken(RIGHT_BRACE); break;    
+        case '[': addToken(LEFT_SQUARE_BRACKET); break;     
+        case ']': addToken(RIGHT_SQUARE_BRACKET); break;    
         case ',': addToken(COMMA); break;          
         case '-': addToken(MINUS); break;          
         case '+': addToken(PLUS); break;           
@@ -134,7 +136,7 @@ void Scanner::string_literal() {
     advance();                                              
 
     // Trim the surrounding quotes.                         
-    std::string value = source_.substr(start_ + 1, current_ -start_ - 1);
+    std::string value = source_.substr(start_ + 1, current_ - start_ - 2);
     addToken(STRING, value);
 }   
 

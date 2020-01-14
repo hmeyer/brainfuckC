@@ -8,6 +8,8 @@ std::string Token::DebugString() const {
         case RIGHT_PAREN: return ")";
         case LEFT_BRACE: return "{";
         case RIGHT_BRACE: return "}";
+        case LEFT_SQUARE_BRACKET: return "[";
+        case RIGHT_SQUARE_BRACKET: return "]";
         case COMMA: return ",";
         case MINUS: return " MINUS ";
         case PLUS: return " PLUS ";

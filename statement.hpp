@@ -19,13 +19,14 @@ public:
 
 class VarDeclaration : public Statement {
 public:
-    VarDeclaration(Token name, std::unique_ptr<Expression> initializer) : name_(std::move(name)), initializer_(std::move(initializer)) {}
+    VarDeclaration(Token name, int size, std::vector<std::unique_ptr<Expression>> initializer) : name_(std::move(name)), size_(size), initializer_(std::move(initializer)) {}
     void evaluate_impl(BfSpace* bf) const override;
     std::string Description() const override;
     std::string DebugString() const override;
  private:
     Token name_;
-    std::unique_ptr<Expression> initializer_;
+    int size_;
+    std::vector<std::unique_ptr<Expression>> initializer_;
 };
 
 class Putc : public Statement {

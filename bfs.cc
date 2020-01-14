@@ -26,20 +26,23 @@ handler()
 int main(int argc, const char * argv[]) {
     //std::set_terminate( handler );
     constexpr char nbf_code[] = R"(
-        fun count_down(x) {
-            if (x > 0) {
-                var c = x;
-                while(c > 0) {
-                    nprint(c);
-                    c = c - 1;
-                    putc(' ');
-                }
-                putc('\n');
-                count_down(x-1);
-            }
-        }
+        // fun count_down(x) {
+        //     if (x > 0) {
+        //         var c = x;
+        //         while(c > 0) {
+        //             nprint(c);
+        //             c = c - 1;
+        //             putc(' ');
+        //         }
+        //         putc('\n');
+        //         count_down(x-1);
+        //     }
+        // }
 
-        count_down(20);
+        var hello[6] = "Hello";
+        var numbers[3] = 0, 1, 2;
+
+//        count_down(20);
     )";
     Scanner scanner(nbf_code);
     auto tokens = scanner.scanTokens();             

@@ -60,6 +60,7 @@ class Variable {
         return *this;
     }
     Variable get_predecessor(int num = 1) const { return Variable{parent_, index_ - num, DebugString() + "_" + std::to_string(num) + "predecessor"}; }
+    Variable get_successor(int num = 1) const { return Variable{parent_, index_ + num, DebugString() + "_" + std::to_string(num) + "successor"}; }
 
     ~Variable() {
         if (is_temp() && parent_ != nullptr) {

@@ -23,16 +23,20 @@ void Statement::evaluate(BfSpace* bf) const {
 }
 
 void VarDeclaration::evaluate_impl(BfSpace* bf) const {
-    auto v = bf->add(std::get<std::string>(name_.value));
-    if (initializer_ != nullptr) {
-        bf->copy(initializer_->evaluate(bf), v);
+    auto v = bf->add(std::get<std::string>(name_.value), size_);
+    for(int i = 0; i < initializer_.size(); i++) {
+        bf->copy(initializer_[i]->evaluate(bf), v.get_successor(i));
     }
 }
 
 std::string VarDeclaration::Description() const {
     std::string s = "var " + name_.DebugString();
-    if (initializer_) {
-        s += " = " + initializer_->DebugString();
+    if (!initializer_.empty()) {
+        std::string seperator = " = ";
+        for(const auto& i : initializer_) {
+         s += seperator + i->DebugString();
+         seperator = "; ";
+        }
     }
     return s + ";";
 }

@@ -64,14 +64,35 @@ std::unique_ptr<Function> Parser::function() {
 
 std::unique_ptr<Statement> Parser::var_declaration() {
     Token name = consume(IDENTIFIER, "Expect variable name.");
+    int size = 1;
+    if (match(LEFT_SQUARE_BRACKET)) {
+        Token size_token = consume(NUMBER, "Expect variable size as number.");
+        consume(RIGHT_SQUARE_BRACKET, "Expect closing bracket after size.");
+        size = std::get<int>(size_token.value);
+    }
 
-    std::unique_ptr<Expression> initializer;
-    if (match(EQUAL)) {                                          
-      initializer = expression();                                
-    }                                                            
+    std::vector<std::unique_ptr<Expression>> initializer;
+    if (match(EQUAL)) {
+        if (match(STRING)) {
+            auto s = std::get<std::string>(previous().value);
+            for(char c : s) {
+                initializer.push_back(std::make_unique<Literal>(c));
+            }
+            initializer.push_back(std::make_unique<Literal>(0));
+        } else {
+            do {                                       
+                initializer.push_back(expression());
+            } while(match(COMMA));
+        }
+    }
 
     consume(SEMICOLON, "Expect ';' after variable declaration.");
-    return std::make_unique<VarDeclaration>(name, std::move(initializer));
+    
+    if (!initializer.empty() && initializer.size() != size) {
+        throw std::invalid_argument("Variable size (" + std::to_string(size) + ") does not match initializer list size (" + std::to_string(initializer.size()) + ").");
+    }
+
+    return std::make_unique<VarDeclaration>(name, size, std::move(initializer));
 }
 
 
@@ -306,9 +327,13 @@ std::unique_ptr<Expression> Parser::primary() {
         return std::make_unique<Literal>(previous().value);         
     }
 
-
     if (match(IDENTIFIER)) {
-        return std::make_unique<VariableExpression>(previous());       
+        std::unique_ptr<Expression> index;
+        if (match(LEFT_SQUARE_BRACKET)) {
+            index = expression();
+            consume(LEFT_BRACE, "Expect ']' after index.");
+        }
+        return std::make_unique<VariableExpression>(previous(), std::move(index));
     }
 
     if (match(LEFT_PAREN)) {                               

@@ -53,13 +53,14 @@ private:
 
 class VariableExpression : public Expression {
 public:
-    VariableExpression(Token name): name_(std::move(name)) {}
+    VariableExpression(Token name, std::unique_ptr<Expression> index): name_(std::move(name)), index_(std::move(index)) {}
     Variable evaluate_impl(BfSpace* bf) override;
     std::string DebugString() const override;
     const Token& name_token() const { return name_; }
 
 private:
     Token name_;
+    std::unique_ptr<Expression> index_;
 };
 
 
