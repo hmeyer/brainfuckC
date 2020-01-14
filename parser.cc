@@ -323,8 +323,8 @@ std::unique_ptr<Statement> Parser::call() {
 }
 
 std::unique_ptr<Expression> Parser::primary() {
-    if (match({NUMBER, STRING})) {                           
-        return std::make_unique<Literal>(previous().value);         
+    if (match(NUMBER)) {                           
+        return std::make_unique<Literal>(std::get<int>(previous().value));
     }
 
     if (match(IDENTIFIER)) {

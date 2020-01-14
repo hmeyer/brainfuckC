@@ -43,12 +43,12 @@ private:
 
 class Literal : public Expression {
 public:
-    Literal(TokenValue value): value_(std::move(value)) {}
+    Literal(int value): value_(std::move(value)) {}
     Variable evaluate_impl(BfSpace* bf) override;
     std::string DebugString() const override;
 
 private:
-    TokenValue value_;
+    int value_;
 };
 
 class VariableExpression : public Expression {

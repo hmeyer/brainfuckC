@@ -40,27 +40,14 @@ std::string Unary::DebugString() const {
 }
 
 Variable Literal::evaluate_impl(BfSpace* bf) {
-    assert(!std::holds_alternative<std::nullopt_t>(value_));
-    if (std::holds_alternative<int>(value_)) {
-        return bf->addTempWithValue(std::get<int>(value_));
-    }
-    if (std::holds_alternative<std::string>(value_)) {
-        throw std::runtime_error("cannot handle string literals yet");
-    }
-    assert(false);  // should never reach here.
+    return bf->addTempWithValue(value_);
 }
 
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 std::string Literal::DebugString() const { 
-    std::string result;
-    std::visit(overloaded {
-        [&result](std::nullopt_t) { result = "nullopt_t"; },
-        [&result](int v) { result = std::to_string(v); },
-        [&result](std::string v) { result = v; },
-    }, value_);
-    return result;
+    return std::to_string(value_);
 }
 
 Variable VariableExpression::evaluate_impl(BfSpace* bf) {
