@@ -442,6 +442,13 @@ void BfSpace::copy(const Variable& src, const Variable& dst) {
           << t << "[" << src << "+" << t << "-" << "]";
 }
 
+void BfSpace::move(const Variable& src, const Variable& dst) {
+    auto i = indent();
+    *this << Comment{"move(" + src.DebugString() + "; " + dst.DebugString() + ")"};
+    *this << dst << "[-]" 
+          << src << "[" << dst << "+" <<  src << "-]";
+}
+
 Variable BfSpace::wrap_temp(Variable v) {
     if (v.is_temp()) return v;
     Variable result = addTemp();
@@ -594,4 +601,40 @@ void BfSpace::op_call_function(const std::string& name, std::vector<Variable> ar
     copy(addTempWithValue(function_index), get(kCalledFunctionIndex));
     *this << get(kReturnPosition) << "[-]";
     *this << get(kCallNotPending) << "[-]";
+}
+
+Variable BfSpace::op_array_fetch(Variable a, Variable index) {
+    *this << Comment{"fetch from array: " + std::string(a.DebugString())};
+    auto i = indent();
+    auto before_head = a.get_predecessor(1);
+    auto space = a.get_successor(0);
+    auto index1 = a.get_successor(1);
+    auto index2 = a.get_successor(2);
+    auto data = a.get_successor(3);
+    auto after_head = a.get_successor(4);
+    copy(index, index1);
+    copy(index, index2);
+    {
+        auto i = indent();
+        *this << Comment{"move head to array index"};
+        *this << index1 << "[-";
+        move(after_head, space);
+        move(data, after_head);
+        move(index2, data);
+        move(index1, index2);
+        *this << Comment{"advance"} << ">";
+        *this << index1 << "]";
+    }
+    copy(after_head, data);
+    {
+        auto i = indent();
+        *this << Comment{"move head back"};
+        *this << index2 << "[-";
+        move(index2, index1);
+        move(data, index2);
+        move(before_head, data);
+        *this << Comment{"move back"} << "<";
+        *this << index2 << "]";
+    }
+    return data;
 }

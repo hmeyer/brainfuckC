@@ -39,10 +39,16 @@ int main(int argc, const char * argv[]) {
             }
         }
 
-        var hello[6] = "Hello";
+        var hello[12] = "Hello World";
         var numbers[3] = 0, 1, 2;
+        var i = 0;
+        while(hello[i]) {
+            putc(hello[i]);
+            i = i + 1;
+        }
+        putc('\n');
 
-       count_down(20);
+//       count_down(20);
     )";
     Scanner scanner(nbf_code);
     auto tokens = scanner.scanTokens();             

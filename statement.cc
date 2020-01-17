@@ -23,9 +23,10 @@ void Statement::evaluate(BfSpace* bf) const {
 }
 
 void VarDeclaration::evaluate_impl(BfSpace* bf) const {
-    auto v = bf->add(std::get<std::string>(name_.value), size_);
+    int array_head_size = (size_ == 1) ? 0 : 4;
+    auto v = bf->add(std::get<std::string>(name_.value), size_ + array_head_size);
     for(int i = 0; i < initializer_.size(); i++) {
-        bf->copy(initializer_[i]->evaluate(bf), v.get_successor(i));
+        bf->copy(initializer_[i]->evaluate(bf), v.get_successor(i + array_head_size));
     }
 }
 

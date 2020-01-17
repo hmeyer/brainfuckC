@@ -328,12 +328,13 @@ std::unique_ptr<Expression> Parser::primary() {
     }
 
     if (match(IDENTIFIER)) {
+        auto name = previous();
         std::unique_ptr<Expression> index;
         if (match(LEFT_SQUARE_BRACKET)) {
             index = expression();
-            consume(LEFT_BRACE, "Expect ']' after index.");
+            consume(RIGHT_SQUARE_BRACKET, "Expect ']' after index.");
         }
-        return std::make_unique<VariableExpression>(previous(), std::move(index));
+        return std::make_unique<VariableExpression>(name, std::move(index));
     }
 
     if (match(LEFT_PAREN)) {                               

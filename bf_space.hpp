@@ -174,6 +174,7 @@ class BfSpace {
     Variable op_or(Variable x, std::function<Variable()> y);
     void op_if_then(Variable condition, std::function<void()> then_branch);
     void op_call_function(const std::string& name, std::vector<Variable> arguments);
+    Variable op_array_fetch(Variable a, Variable index);
 
     void copy(const Variable& src, const Variable& dst);
     class [[nodiscard]] ScopePopper {
@@ -194,6 +195,7 @@ class BfSpace {
     int num_function_calls() const { return num_function_calls_; }
 
     private:
+        void move(const Variable& src, const Variable& dst);
         void moveTo(int pos);
         void move_to_top() { moveTo(env_->top()); }
         // Whether of not this is the primary/ base space. The primary space needs to include the logic

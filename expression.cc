@@ -51,7 +51,12 @@ std::string Literal::DebugString() const {
 }
 
 Variable VariableExpression::evaluate_impl(BfSpace* bf) {
-    return bf->get(std::get<std::string>(name_.value));
+    auto var = bf->get(std::get<std::string>(name_.value));
+    if (index_ != nullptr) {
+        auto index = index_->evaluate(bf);
+        return bf->op_array_fetch(std::move(var), std::move(index));
+    }
+    return var;
 }
 
 std::string VariableExpression::DebugString() const {
