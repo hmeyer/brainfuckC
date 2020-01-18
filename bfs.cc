@@ -26,22 +26,35 @@ handler()
 int main(int argc, const char * argv[]) {
     //std::set_terminate( handler );
     constexpr char nbf_code[] = R"(
-        fun count_down(x) {
-            if (x > 0) {
-                var c = x;
-                while(c > 0) {
-                    nprint(c);
-                    c = c - 1;
-                    putc(' ');
-                }
-                putc('\n');
-                count_down(x-1);
-            }
-        }
+        // fun count_down(x) {
+        //     if (x > 0) {
+        //         var c = x;
+        //         while(c > 0) {
+        //             nprint(c);
+        //             c = c - 1;
+        //             putc(' ');
+        //         }
+        //         putc('\n');
+        //         count_down(x-1);
+        //     }
+        // }
 
         var hello[12] = "Hello World";
-        var numbers[3] = 0, 1, 2;
+        // var numbers[3] = 0, 1, 2;
         var i = 0;
+        while(hello[i]) {
+            putc(hello[i]);
+            i = i + 1;
+        }
+        putc('\n');
+        
+        i = 1;
+        hello[i] = 'a';
+        hello[i+6] = 'e';
+        hello[i+7] = 'l';
+        hello[i*8+1] = 't';
+        hello[i*8+2] = '!';
+        i = 0;
         while(hello[i]) {
             putc(hello[i]);
             i = i + 1;

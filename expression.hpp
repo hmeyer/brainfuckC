@@ -57,6 +57,7 @@ public:
     Variable evaluate_impl(BfSpace* bf) override;
     std::string DebugString() const override;
     const Token& name_token() const { return name_; }
+    std::unique_ptr<Expression> release_index() { return std::move(index_); };
 
 private:
     Token name_;
@@ -66,11 +67,12 @@ private:
 
 class Assignment : public Expression {
 public:
-    Assignment(Token left, std::unique_ptr<Expression> right) : left_(std::move(left)), right_(std::move(right)) {}
+    Assignment(Token left, std::unique_ptr<Expression> left_index, std::unique_ptr<Expression> right) : left_(std::move(left)), left_index_(std::move(left_index)), right_(std::move(right)) {}
     Variable evaluate_impl(BfSpace* bf) override;
     std::string DebugString() const override;
  private:
     Token left_;
+    std::unique_ptr<Expression> left_index_;
     std::unique_ptr<Expression> right_;
 };
 

@@ -54,7 +54,7 @@ Variable VariableExpression::evaluate_impl(BfSpace* bf) {
     auto var = bf->get(std::get<std::string>(name_.value));
     if (index_ != nullptr) {
         auto index = index_->evaluate(bf);
-        return bf->op_array_fetch(std::move(var), std::move(index));
+        return bf->op_array_read(std::move(var), std::move(index));
     }
     return var;
 }
@@ -64,10 +64,15 @@ std::string VariableExpression::DebugString() const {
 }
 
 Variable Assignment::evaluate_impl(BfSpace* bf) {
-    Variable x = bf->get(std::get<std::string>(left_.value));
-    Variable y = right_->evaluate(bf);
-    bf->copy(y, x);
-    return x;
+    Variable left = bf->get(std::get<std::string>(left_.value));
+    Variable right = right_->evaluate(bf);
+    if (left_index_ != nullptr) {
+        Variable index = left_index_->evaluate(bf);
+        auto right_copy = bf->addTempAsCopy(right);
+        bf->op_array_write(std::move(left), std::move(index), std::move(right_copy));
+    }
+    bf->copy(right, left);
+    return right;
 }
 
 std::string Assignment::DebugString() const {

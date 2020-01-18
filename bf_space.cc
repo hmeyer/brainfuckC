@@ -603,8 +603,8 @@ void BfSpace::op_call_function(const std::string& name, std::vector<Variable> ar
     *this << get(kCallNotPending) << "[-]";
 }
 
-Variable BfSpace::op_array_fetch(Variable a, Variable index) {
-    *this << Comment{"fetch from array: " + std::string(a.DebugString())};
+Variable BfSpace::op_array_read(Variable a, Variable index) {
+    *this << Comment{"read from array: " + std::string(a.DebugString())};
     auto i = indent();
     auto before_head = a.get_predecessor(1);
     auto space = a.get_successor(0);
@@ -619,7 +619,6 @@ Variable BfSpace::op_array_fetch(Variable a, Variable index) {
         *this << Comment{"move head to array index"};
         *this << index1 << "[-";
         move(after_head, space);
-        move(data, after_head);
         move(index2, data);
         move(index1, index2);
         *this << Comment{"advance"} << ">";
@@ -637,4 +636,39 @@ Variable BfSpace::op_array_fetch(Variable a, Variable index) {
         *this << index2 << "]";
     }
     return data;
+}
+
+void BfSpace::op_array_write(Variable a, Variable index, Variable value) {
+    *this << Comment{"write " + value.DebugString() + " to array: " + a.DebugString()};
+    auto i = indent();
+    auto before_head = a.get_predecessor(1);
+    auto space = a.get_successor(0);
+    auto index1 = a.get_successor(1);
+    auto index2 = a.get_successor(2);
+    auto data = a.get_successor(3);
+    copy(value, data);
+    auto after_head = a.get_successor(4);
+    copy(index, index1);
+    copy(index, index2);
+    {
+        auto i = indent();
+        *this << Comment{"move head to array index"};
+        *this << index1 << "[-";
+        move(after_head, space);
+        move(data, after_head);
+        move(index2, data);
+        move(index1, index2);
+        *this << Comment{"advance"} << ">";
+        *this << index1 << "]";
+    }
+    copy(data, after_head);
+    {
+        auto i = indent();
+        *this << Comment{"move head back"};
+        *this << index2 << "[-";
+        move(index2, index1);
+        move(before_head, data);
+        *this << Comment{"move back"} << "<";
+        *this << index2 << "]";
+    }
 }

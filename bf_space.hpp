@@ -174,7 +174,8 @@ class BfSpace {
     Variable op_or(Variable x, std::function<Variable()> y);
     void op_if_then(Variable condition, std::function<void()> then_branch);
     void op_call_function(const std::string& name, std::vector<Variable> arguments);
-    Variable op_array_fetch(Variable a, Variable index);
+    Variable op_array_read(Variable a, Variable index);
+    void op_array_write(Variable a, Variable index, Variable value);
 
     void copy(const Variable& src, const Variable& dst);
     class [[nodiscard]] ScopePopper {

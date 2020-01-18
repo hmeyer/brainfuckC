@@ -155,7 +155,7 @@ std::unique_ptr<Expression> Parser::assignment() {
         if (var_expression == nullptr) {
             throw std::invalid_argument("invalid assignment target [" + expr->DebugString() + "]");
         }
-        return std::make_unique<Assignment>(var_expression->name_token(), std::move(value));
+        return std::make_unique<Assignment>(var_expression->name_token(), var_expression->release_index(), std::move(value));
     }
 
     return expr;
