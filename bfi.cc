@@ -2,18 +2,21 @@
 #include <unordered_map>
 #include <vector>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <cassert>
+#include <cstdint>
+#include <string>
 
 
 using Word = uint32_t;
 
-class Tape {
-public:
-    Word& operator[](int p);
-private:
-    std::vector<Word> negative_;
-    std::vector<Word> positive_;
-};
+void print_usage(const std::string& program_name) {
+    std::cerr << "Usage: " << program_name << " [--nocomments|-nc] <filename> [max_steps]" << std::endl;
+    std::cerr << "Options:" << std::endl;
+    std::cerr << "  --nocomments, -nc    Don't ignore comments (parts of code after # character)" << std::endl;
+    std::cerr << "  max_steps            Maximum number of steps to execute (default: 1000000)" << std::endl;
+}
 
 class BrainfuckInterpreter {
 public:
@@ -21,39 +24,82 @@ public:
     // returns true if there are more step to run.
     bool run_step();
     // runs to the end.
-    void run();
+    void run(size_t max_steps = 1000000);
 private:
     char next();
     std::string code_;
     std::unordered_map<int, int> loop_start_to_end_;
     std::unordered_map<int, int> loop_end_to_start_;
     int ip_ = 0;
-    Tape tape_;
+    std::unordered_map<int, Word> tape_;
     int tp_ = 0;
 };
 
 int main(int argc, const char * argv[]) {
     std::string code;
-    for (std::string line; std::getline(std::cin, line);) {
-        code += line;
+    size_t max_steps = 1000000;
+    bool ignore_comments = true;
+    std::string filename;
+    
+    // Parse command-line arguments
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--nocomments" || arg == "-nc") {
+            ignore_comments = false;
+        } else if (filename.empty()) {
+            // First non-option argument is the filename
+            filename = arg;
+        } else {
+            // Second non-option argument is max_steps
+            try {
+                max_steps = std::stoull(arg);
+            } catch (const std::exception& e) {
+                std::cerr << "Error: Invalid max_steps value: " << arg << std::endl;
+                print_usage(argv[0]);
+                return 1;
+            }
+        }
     }
-
+    
+    if (filename.empty()) {
+        print_usage(argv[0]);
+        return 1;
+    }
+    
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error: Could not open file " << filename << std::endl;
+        return 1;
+    }
+    
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string raw_code = buffer.str();
+    
+    // Process the code to handle comments if needed
+    if (ignore_comments) {
+        for (size_t i = 0; i < raw_code.length(); ++i) {
+            if (raw_code[i] == '#') {
+                // Skip until end of line or end of file
+                while (i < raw_code.length() && raw_code[i] != '\n') {
+                    ++i;
+                }
+                if (i >= raw_code.length()) break;
+                if (raw_code[i] == '\n') {
+                    code += raw_code[i];  // Keep the newline character
+                }
+            } else {
+                code += raw_code[i];
+            }
+        }
+    } else {
+        code = raw_code;
+    }
+    
     BrainfuckInterpreter interpreter(code);
-    interpreter.run();
+    interpreter.run(max_steps);
 
     return 0;
-}
-
-Word& Tape::operator[](int p) {
-    std::vector<Word>* a = &positive_;
-    if (p < 0) {
-        p = 1 - p;
-        a = &negative_;
-    }
-    if (p >= a->size()) {
-        a->resize(p + 1);
-    }
-    return (*a)[p];
 }
 
 BrainfuckInterpreter::BrainfuckInterpreter(std::string code) {
@@ -92,28 +138,40 @@ bool BrainfuckInterpreter::run_step() {
     }
     switch (code_[ip_++]) {
         case '.': std::cout << static_cast<char>(tape_[tp_]) << std::flush; break;
-        case ',': tape_[tp_] = getchar(); break;
+        case ',': {
+            int ch = getchar();
+            if (ch == EOF) {
+                std::cerr << "Error: No input available from stdin" << std::endl;
+                exit(1);
+            }
+            tape_[tp_] = ch;
+            break;
+        }
         case '+': tape_[tp_]++; break;
         case '-': tape_[tp_]--; break;
         case 'z': tape_[tp_] = 0; break;
         case '>': tp_++; break;
         case '<': tp_--; break;
         case '[': if (tape_[tp_] == 0) {
-                assert(loop_start_to_end_.find(ip_) != loop_start_to_end_.end());
-                ip_ = loop_start_to_end_[ip_];
+                ip_ = loop_start_to_end_.at(ip_);
             }
             break;
-        case ']': if (tape_[tp_] != 0) {
-                assert(loop_end_to_start_.find(ip_) != loop_end_to_start_.end());
-                ip_ = loop_end_to_start_[ip_];
-            }
+        case ']': ip_ = loop_end_to_start_.at(ip_);
             break;
         default:
             throw std::runtime_error("unexpected token" + code_.substr(ip_ -1, 1));
     }
     return true;
 }
-void BrainfuckInterpreter::run() {
-    while(run_step());
+
+void BrainfuckInterpreter::run(size_t max_steps) {
+    size_t steps = 0;
+    while(run_step()) {
+        steps++;
+        if (steps >= max_steps) {
+            std::cerr << "Error: Maximum steps (" << max_steps << ") reached" << std::endl;
+            exit(1);
+        }
+    }
 }
 
