@@ -30,7 +30,7 @@ std::string Variable::DebugString() const {
         i_str = "neg" + i_str;
     }
     if (name_.empty()) {
-        return "~t{" + i_str + "}";
+        return "__t{" + i_str + "}";
     } else {
         return name_ + "{" + i_str + "}";
     }
@@ -358,6 +358,7 @@ Variable BfSpace::op_eq(Variable x, Variable y) {
 
 Variable BfSpace::op_neq(Variable x, Variable y) {
     *this << Comment{"neq(" + x.DebugString() + "; " + y.DebugString() + ")"};
+    auto i = indent();
     return op_sub(std::move(x), std::move(y));
 }
 
@@ -504,8 +505,8 @@ std::string BfSpace::code() {
     reset_env_and_code();
     generate_dispatch_wrapped_code();
     reset_env_and_code();
-    return generate_dispatch_wrapped_code();
     // Then run generator for realz.
+    return generate_dispatch_wrapped_code();
 }
 
 void BfSpace::finish_function_call(const std::string& name) {
