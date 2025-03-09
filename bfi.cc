@@ -10,6 +10,7 @@
 
 
 using Word = uint32_t;
+const size_t kDefaultMaxSteps = 10 * 1000 * 1000;
 
 void print_usage(const std::string& program_name) {
     std::cerr << "Usage: " << program_name << " [--nocomments|-nc] <filename> [max_steps]" << std::endl;
@@ -24,9 +25,8 @@ public:
     // returns true if there are more step to run.
     bool run_step();
     // runs to the end.
-    void run(size_t max_steps = 1000000);
+    void run(size_t max_steps);
 private:
-    char next();
     std::string code_;
     std::unordered_map<int, int> loop_start_to_end_;
     std::unordered_map<int, int> loop_end_to_start_;
@@ -37,7 +37,7 @@ private:
 
 int main(int argc, const char * argv[]) {
     std::string code;
-    size_t max_steps = 1000000;
+    size_t max_steps = kDefaultMaxSteps;
     bool ignore_comments = true;
     std::string filename;
     
@@ -126,7 +126,7 @@ BrainfuckInterpreter::BrainfuckInterpreter(std::string code) {
                 loop_starts.pop_back();
                 int end = code_.size();
                 loop_start_to_end_[start] = end;
-                loop_end_to_start_[end] = start;
+                loop_end_to_start_[end] = start - 1;
             }
         }
     }
