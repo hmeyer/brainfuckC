@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BUILD_DIR=$(dirname "$0")/../build
+BUILD_DIR=$(dirname "$0")/build
 mkdir -p $BUILD_DIR
 cd $BUILD_DIR
 cmake ..
