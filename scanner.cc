@@ -96,7 +96,7 @@ void Scanner::identifier() {
 
 void Scanner::number_literal() {                           
     while (isdigit(peek())) advance();
-    std::string_view text = source_.substr(start_, current_ - start_);
+    auto text = std::string_view(source_).substr(start_, current_ - start_);
     int value = std::stoi(std::string(text));
     addToken(NUMBER, value);
 }   
