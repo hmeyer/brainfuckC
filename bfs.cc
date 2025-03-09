@@ -2,7 +2,7 @@
 #include "parser.hpp"
 #include "bf_space.hpp"
 #include <iostream>
-
+#include <fstream>
 #include <cstdlib>
 #include <stdexcept>
 #include <execinfo.h>
@@ -24,51 +24,38 @@ handler()
 }  
 
 int main(int argc, const char * argv[]) {
-    //std::set_terminate( handler );
-    constexpr char nbf_code[] = R"(
-        // fun count_down(x) {
-        //     if (x > 0) {
-        //         var c = x;
-        //         while(c > 0) {
-        //             nprint(c);
-        //             c = c - 1;
-        //             putc(' ');
-        //         }
-        //         putc('\n');
-        //         count_down(x-1);
-        //     }
-        // }
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <input file> <output file>\n";
+        return 1;
+    }
 
-        var hello[12] = "Hello World";
-        // var numbers[3] = 0, 1, 2;
-        var i = 0;
-        while(hello[i]) {
-            putc(hello[i]);
-            i = i + 1;
-        }
-        putc('\n');
-        
-        i = 1;
-        hello[i] = 'a';
-        hello[i+6] = 'e';
-        hello[i+7] = 'l';
-        hello[i*8+1] = 't';
-        hello[i*8+2] = '!';
-        i = 0;
-        while(hello[i]) {
-            putc(hello[i]);
-            i = i + 1;
-        }
-        putc('\n');
+    const char* input_file = argv[1];
+    const char* output_file = argv[2];
 
-//       count_down(20);
-    )";
-    Scanner scanner(nbf_code);
+    std::ifstream input(input_file);
+    if (!input) {
+        std::cerr << "Could not open input file: " << input_file << "\n";
+        return 1;
+    }
+
+    std::string nbf_code((std::istreambuf_iterator<char>(input)), std::istreambuf_iterator<char>());
+    input.close();
+
+    Scanner scanner(nbf_code.c_str());
     auto tokens = scanner.scanTokens();             
     Parser parser(tokens);
     auto functions = parser.parse();
     BfSpace bfs;
     bfs.register_functions(functions);
-    std::cout << bfs.code() << std::endl;
+
+    std::ofstream output(output_file);
+    if (!output) {
+        std::cerr << "Could not open output file: " << output_file << "\n";
+        return 1;
+    }
+
+    output << bfs.code() << std::endl;
+    output.close();
+
     return 0;
 }

@@ -1,0 +1,14 @@
+fun count_down(x) {
+    if (x > 0) {
+        var c = x;
+        while(c > 0) {
+            nprint(c);
+            c = c - 1;
+            putc(' ');
+        }
+        putc('\n');
+        count_down(x-1);
+    }
+}
+
+count_down(20);

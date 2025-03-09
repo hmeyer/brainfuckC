@@ -1,0 +1,20 @@
+var hello[12] = "Hello World";
+var i = 0;
+while(hello[i]) {
+    putc(hello[i]);
+    i = i + 1;
+}
+putc('\n');
+
+i = 1;
+hello[i] = 'a';
+hello[i+6] = 'e';
+hello[i+7] = 'l';
+hello[i*8+1] = 't';
+hello[i*8+2] = '!';
+i = 0;
+while(hello[i]) {
+    putc(hello[i]);
+    i = i + 1;
+}
+putc('\n');
