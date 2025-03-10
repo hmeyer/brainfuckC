@@ -187,7 +187,7 @@ BfSpace::Emitter& BfSpace::Emitter::operator<<(std::string_view s) {
 }
 
 BfSpace::Emitter& BfSpace::Emitter::operator<<(const Variable& v) {
-    parent_->append_code(v.DebugString());
+    *this<<Comment{v.DebugString()};
     parent_->moveTo(v.index());
     return *this;
 }
